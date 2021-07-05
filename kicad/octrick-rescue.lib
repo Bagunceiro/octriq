@@ -1,0 +1,20 @@
+EESchema-LIBRARY Version 2.4
+#encoding utf-8
+#
+# DC-DC_Converter-local-xmas-rescue
+#
+DEF DC-DC_Converter-local-xmas-rescue Mod 0 40 N Y 1 F N
+F0 "Mod" -50 700 50 H V C CNN
+F1 "DC-DC_Converter-local-xmas-rescue" 50 550 50 H V C CNN
+F2 "" -50 600 50 H I C CNN
+F3 "" -50 600 50 H I C CNN
+DRAW
+S -200 600 300 150 0 1 0 N
+X in+ 1 -300 400 100 R 50 50 1 1 I
+X out+ 2 400 400 100 L 50 50 1 1 O
+X out- 3 400 250 100 L 50 50 1 1 O
+X in- 4 -300 250 100 R 50 50 1 1 I
+ENDDRAW
+ENDDEF
+#
+#End Library
