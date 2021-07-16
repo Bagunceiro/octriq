@@ -1,3 +1,10 @@
+#include <cstring>
+#include <unistd.h>
+#include <sys/time.h>
+
+#include "seqlang.h"
+#include "seqvm.h"
+
 #ifdef ARDUINO
 #include <LITTLEFS.h>
 #define LOG(...) Serial.printf(__VA_ARGS__)
@@ -30,15 +37,6 @@ void delay(unsigned int msecs)
 }
 
 #endif
-
-#include <cstring>
-#include <unistd.h>
-#include <sys/time.h>
-
-#include "seqlang.h"
-#include "seqvm.h"
-
-
 
 class Instruction
 {

@@ -1,0 +1,33 @@
+off = 0
+longt = 200
+
+32	nop;
+	jmp start;
+
+
+/*
+ comment
+ */
+
+// A comment
+refrain:
+	set #3,off;
+100	set #3,bright;
+100	ret;
+
+start:
+	clr;
+        set %2, 85;
+	set #1,%2;
+	set %5,10;
+
+50	set %reg,3;
+loop:
+	jsr refrain;
+	sub %5,1;
+        jnz loop;
+        run refrain;
+	hlt;
+
+
+bright = 256

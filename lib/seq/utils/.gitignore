@@ -1,0 +1,12 @@
+lex.yy.c
+seq
+seq.c
+seq.tab.c
+seq.tab.cc
+seq.tab.h
+tab
+*.o
+seqdis
+seqasm
+seqvm
+*.bin

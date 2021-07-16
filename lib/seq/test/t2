@@ -1,0 +1,7 @@
+reg=4
+	set %reg,8;
+loop:
+	set (%reg),55;
+1000	sub %reg,1;
+        jnz loop;
+800	hlt;
