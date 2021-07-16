@@ -7,6 +7,8 @@
 #include "ntpclient.h"
 #include "cmd.h"
 
+#include "seqvm.h"
+
 const char *mDNSName = "octrick";
 
 #define serr Serial
@@ -91,6 +93,9 @@ void setup()
   connectToWiFi();
   initSysUpdate();
   startCmdTask();
+  VM::buildOpMap();
+  VM vm("seq.bin");
+  // vm.exec(0); in a task!!!
 }
 
 void loop()
