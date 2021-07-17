@@ -10,6 +10,40 @@
 
 #include "seqlang.h"
 
+#ifdef ARDUINO
+#define LOGF(...) Serial.printf(__VA_ARGS__)
+#define OPENFILE(fname, mode) LITTLEFS.open(fname, mode)
+#define CLOSEFILE(file) file.close()
+#define READFILE(file, buffer, size) file.read((uint8_t *)buffer, size)
+#define SEEKFILE(file, pos, mode) file.seek(pos, mode)
+#define POSINFILE(file) file.position()
+#define SEEKMODE_SET SeekSet
+#define SEEKMODE_END SeekEnd
+#else
+#define File FILE *
+#define OPENFILE(fname, mode) fopen(fname, mode)
+#define CLOSEFILE(file) fclose(file)
+#define READFILE(file, buffer, size) fread((void*)buffer, size, 1, file)
+#define SEEKFILE(file, pos, mode) fseek(file, pos, mode)
+#define POSINFILE(file) ftell(file)
+#define SEEKMODE_SET SEEK_SET
+#define SEEKMODE_END SEEK_END
+#define LOGF(...) printf(__VA_ARGS__)
+#endif
+
+class Text
+{
+    public:
+    Text();
+    virtual ~Text();
+    uint32_t operator[](int index) { return memory[index]; }
+    unsigned int load(File f);
+    size_t getSize() { return size; }
+    private:
+    size_t size;
+    uint32_t* memory;
+};
+
 class VM
 {
 public:
@@ -33,6 +67,7 @@ private:
     static void doExec(void*);
 #endif
 
+    Text txt;
     int reg[NREGISTERS];
     int stackSize;
     int *stack;
@@ -42,7 +77,7 @@ private:
     int pop();
     bool fetch(unsigned long *instr);
     void jumpto(int address);
-    File binfile;
+//   File binfile;
     int func_nop(int, int);
     int func_set(int, int);
     int func_clr(int, int);

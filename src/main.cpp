@@ -96,7 +96,7 @@ bool checkLittleEndian()
 
 void setup()
 {
-  const char *filename = "/seq.bin";
+  // const char *filename = "/seq.bin";
   extern void initSysUpdate();
   Serial.begin(115200);
 

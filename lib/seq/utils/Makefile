@@ -12,11 +12,14 @@ seqasm:  lex.yy.o seq.tab.o seqasm.o
 seqdis: seqdis.o
 	gcc -o $@ seqdis.o
 
-seqvm: seqvm.o
-	$(CXX) $(CXXFLAGS) -o $@ seqvm.o
+seqvm: seqvm.o hardware.o
+	$(CXX) $(CXXFLAGS) -o $@ seqvm.o hardware.o
 
 seqvm.o: ../src/seqvm.cpp $(LANGHEADER)
 	$(CXX) $(CXXFLAGS) -c ../src/seqvm.cpp
+
+hardware.o: ../src/hardware.cpp $(LANGHEADER)
+	$(CXX) $(CXXFLAGS) -c ../src/hardware.cpp
 
 seqasm.o: seqasm.c seqasm.h seq.tab.h $(LANGHEADER)
 	$(CC) $(CFLAGS) -c seqasm.c

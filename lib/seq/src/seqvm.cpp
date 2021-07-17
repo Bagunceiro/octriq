@@ -8,21 +8,8 @@
 
 #ifdef ARDUINO
 #include <LITTLEFS.h>
-#define LOGF(...) Serial.printf(__VA_ARGS__)
-#define OPENFILE(fname, mode) LITTLEFS.open(fname, mode)
-#define CLOSEFILE(file) file.close()
-#define READFILE(file, buffer, size) file.read((uint8_t *)buffer, size)
-#define SEEKFILE(file, pos, mode) file.seek(pos, mode);
-#define SEEKMODE_SET SeekSet
 #else
 #include <getopt.h>
-#define File FILE *
-#define OPENFILE(fname, mode) fopen(fname, mode);
-#define CLOSEFILE(file) fclose(file)
-#define READFILE(file, buffer, size) fread(buffer, size, 1, file)
-#define SEEKFILE(file, pos, mode) fseek(file, pos, mode);
-#define SEEKMODE_SET SEEK_SET
-#define LOGF(...) printf(__VA_ARGS__)
 
 unsigned long millis()
 {
@@ -39,6 +26,31 @@ void delay(unsigned int msecs)
 }
 
 #endif
+
+Text::Text()
+{
+    size = 0;
+    memory = NULL;
+}
+
+Text::~Text()
+{
+    free(memory);
+}
+
+unsigned int Text::load(File f)
+{
+    SEEKFILE(f, 0, SEEKMODE_END);
+    unsigned int bytes = POSINFILE(f);
+    size = bytes/INSTR_BYTES;
+    memory = reinterpret_cast<uint32_t *>(malloc(bytes));
+    SEEKFILE(f, 0, SEEKMODE_SET);
+    for (int i = 0; i < size; i++)
+    {
+        READFILE(f, &memory[i], INSTR_BYTES);
+    }
+    return size;
+}
 
 class Instruction
 {
@@ -161,13 +173,14 @@ void VM::createTask(const char *name, int stacksize)
 
 VM::VM(File f, int stk)
 {
-    binfile = f;
+//    binfile = f;
     stackptr = 0;
     zero = 0;
     trace = true;
     stack = NULL;
     setStack(stackSize);
     progCounter = 0;
+    txt.load(f);
 }
 
 void VM::setStack(int size)
@@ -215,7 +228,8 @@ int VM::pop()
 
 bool VM::fetch(unsigned long *val)
 {
-    if (READFILE(binfile, val, INSTR_BYTES) > 0)
+    *val = txt[progCounter];
+    if (progCounter < txt.getSize())
     {
         progCounter++;
         return true;
@@ -226,7 +240,6 @@ bool VM::fetch(unsigned long *val)
 void VM::jumpto(int address)
 {
     progCounter = address;
-    SEEKFILE(binfile, progCounter * INSTR_BYTES, SEEKMODE_SET);
 }
 
 void VM::exec()
