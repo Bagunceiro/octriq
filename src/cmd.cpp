@@ -141,6 +141,16 @@ int parse(const char *line, std::vector<String> &argv)
 
 const char *prompt = "> ";
 
+void run(int argc, char* argv[])
+{
+  extern void runBinary(char*);
+    if (argc != 2)
+    {
+      Serial.printf("%s BINFILE");
+    }
+    else runBinary(argv[1]);
+}
+
 void exit(int argc, char *argv[])
 {
   client.stop();
@@ -156,6 +166,7 @@ void help(int argc, char *argv[]);
 
 
 std::vector<cmdDescriptor> cmdTable = {
+  // You can also add entries using "addToCmdTable(...)"
     /*
     cmdEntry(ar, analogRead, ar PIN),
     cmdEntry(archive, set or read the archive server name, archive[SERVER]),
@@ -167,6 +178,7 @@ std::vector<cmdDescriptor> cmdTable = {
     */
     cmdEntry(exit, , ),
     cmdEntry(help, , ),
+    cmdEntry(run, , )
     /*
     cmdEntry(ls, , ),
     cmdEntry(mkdir, make directory, mkdir DIR),

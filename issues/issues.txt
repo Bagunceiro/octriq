@@ -1,2 +1,3 @@
 forward reference to registers (interpreted as a channel)
 closing the File when running as task
+RUN opcode

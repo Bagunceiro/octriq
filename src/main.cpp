@@ -111,16 +111,18 @@ void setup()
   initSysUpdate();
   startCmdTask();
   VM::buildOpMap();
+  /*
   File f = LITTLEFS.open(filename);
   if (f)
   {
     VM* vm = new VM(f);
 
     vm->settrace(true);
-    vm->startAsTask(0, 4096);
+    vm->startAsTask(0);
   }
   else
     Serial.printf("Could not open binary file %s\n", filename);
+    */
 }
 
 void loop()

@@ -4,6 +4,7 @@
 
 #include "seqlang.h"
 #include "seqvm.h"
+#include "hardware.h"
 
 #ifdef ARDUINO
 #include <LITTLEFS.h>
@@ -102,23 +103,13 @@ void Instruction::deconstruct(const unsigned long code)
     _op2 = getField(code, INSTR_BITS, OFFSET_OP2, WIDTH_OP2);
 }
 
-struct Channel
-{
-public:
-    void set(int v) { value = v; }
-    int get() { return value; }
-    void dump();
-
-private:
-    int pin;
-    int value;
-} chan[NCHANNELS];
-
 void dumpChannels()
 {
     for (int i = 0; i < NCHANNELS; i++)
     {
-        LOGF("Channel %x = %d\n", i, chan[i].get());
+        Channel *ch = Channel::getChannel(i);
+        if (ch->valid())
+            LOGF("Channel %x = %d\n", i, ch->get());
     }
 }
 
@@ -159,7 +150,7 @@ void VM::doExec(void *ptr)
     VM *vm = reinterpret_cast<VM *>(ptr);
     vm->exec();
     vTaskDelete(vm->xHandle);
-    delete(vm);
+    delete (vm);
 }
 
 void VM::createTask(const char *name, int stacksize)
@@ -281,7 +272,9 @@ void VM::exec()
                     if (rval > NCHANNELS)
                         rval = reg[rval & REG_MASK];
                     else
-                        rval = chan[rval].get();
+                    {
+                        rval = Channel::getChannel(rval)->get();
+                    }
                 }
                 if ((this->*func)(lval, rval) < 0)
                     break;
@@ -329,7 +322,7 @@ int VM::func_set(int lval, int rval)
     }
     else
     {
-        chan[lval].set(rval);
+        Channel::getChannel(lval)->set(rval);
     }
     return 0;
 }
@@ -340,7 +333,7 @@ int VM::func_clr(int, int)
         LOGF("CLR\n");
     for (int i = 0; i < NCHANNELS; i++)
     {
-        chan[i].set(0);
+        Channel::getChannel(i)->set(0);
     }
     return 0;
 }
@@ -359,10 +352,11 @@ int VM::func_add(int lval, int rval)
     }
     else
     {
-        chan[lval].set((chan[lval].get() + rval) % MOD_OP2);
+        Channel *ch = Channel::getChannel(lval);
+        ch->set((ch->get() + rval) % MOD_OP2);
         if (trace)
-            LOGF("(=%d)\n", chan[lval].get());
-        zero = (chan[lval].get() == 0);
+            LOGF("(=%d)\n", ch->get());
+        zero = (ch->get() == 0);
     }
 
     return 0;
@@ -382,10 +376,16 @@ int VM::func_sub(int lval, int rval)
     }
     else
     {
-        chan[lval].set((chan[lval].get() - rval) % MOD_OP2);
-        if (trace)
-            LOGF("(=%d)\n", chan[lval].get());
-        zero = (chan[lval].get() == 0);
+        Channel *ch = Channel::getChannel(lval);
+        if (ch)
+        {
+            ch->set((ch->get() - rval) % MOD_OP2);
+            if (trace)
+                LOGF("(=%d)\n", ch->get());
+            zero = (ch->get() == 0);
+        }
+        else
+            LOGF("\n");
     }
 
     return 0;
@@ -443,14 +443,14 @@ int VM::func_hlt(int, int)
 int VM::func_psh(int lval, int)
 {
     bool lvalreg = isreg(&lval);
-    int value;
+    int value = 0;
     if (lvalreg)
     {
         value = reg[lval];
     }
     else
     {
-        value = chan[lval].get();
+        value = Channel::getChannel(lval)->get();
     }
     push(value);
     if (trace)
@@ -468,7 +468,7 @@ int VM::func_pop(int lval, int)
     }
     else
     {
-        chan[lval].set(value);
+        Channel::getChannel(lval)->set(value);
     }
     if (trace)
         LOGF("POP %s%d (%d)\n", (lvalreg ? "%" : "#"), lval, value);
@@ -546,8 +546,24 @@ void VM::buildOpMap()
     }
 }
 
-#ifndef ARDUINO
+#ifdef ARDUINO
 
+void runBinary(char* filename)
+{
+    File f = OPENFILE(filename, "r");
+    if (f)
+    {
+        VM* vm = new VM(f);
+        vm->settrace(true);
+        vm->startAsTask(0);
+    }
+    else
+    {
+        LOGF("Cannot open %s\n", filename);
+    }
+}
+
+#else
 int main(int argc, char *argv[])
 {
     int opt;

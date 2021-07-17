@@ -24,7 +24,7 @@ public:
     }
     void setStack(int size);
     void start(int address = 0);
-    void startAsTask(int address, int stacksize);
+    void startAsTask(int address, int stacksize = 4096);
     void settrace(bool t) { trace = t; }
 private:
 #ifdef ARDUINO
