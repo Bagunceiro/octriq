@@ -7,26 +7,27 @@
 
 #ifdef ARDUINO
 #include <LITTLEFS.h>
-#define LOG(...) Serial.printf(__VA_ARGS__)
-#define OPENFILE(fname,mode) LITTLEFS.open(fname, mode)
+#define LOGF(...) Serial.printf(__VA_ARGS__)
+#define OPENFILE(fname, mode) LITTLEFS.open(fname, mode)
 #define CLOSEFILE(file) file.close()
-#define READFILE(file, buffer, size) file.read((uint8_t*)buffer, size) 
-#define SEEKFILE(file, pos, mode) file.seek(pos,mode);
+#define READFILE(file, buffer, size) file.read((uint8_t *)buffer, size)
+#define SEEKFILE(file, pos, mode) file.seek(pos, mode);
 #define SEEKMODE_SET SeekSet
 #else
-#define File FILE*
-#define OPENFILE(fname,mode) fopen(fname, mode);
+#include <getopt.h>
+#define File FILE *
+#define OPENFILE(fname, mode) fopen(fname, mode);
 #define CLOSEFILE(file) fclose(file)
 #define READFILE(file, buffer, size) fread(buffer, size, 1, file)
-#define SEEKFILE(file, pos, mode) fseek(file, pos, mode); 
+#define SEEKFILE(file, pos, mode) fseek(file, pos, mode);
 #define SEEKMODE_SET SEEK_SET
-#define LOG(...) printf(__VA_ARGS__)
+#define LOGF(...) printf(__VA_ARGS__)
 
 unsigned long millis()
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return (tv.tv_sec * 1000) + (tv.tv_usec /1000);
+    return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 }
 
 void delay(unsigned int msecs)
@@ -49,7 +50,7 @@ public:
     int ind() { return _ind; }
     int op2() { return _op2; }
     void dump();
-    
+
 private:
     void deconstruct(const unsigned long ins);
     unsigned int getField(unsigned long code, int width, int pos, int bits);
@@ -62,7 +63,7 @@ private:
 
 void Instruction::dump()
 {
-    printf("%04x %02x %02x %01x %02x\n", _timecode, _opcode, _op1, _ind, _op2);
+    LOGF("%04x %02x %02x %01x %02x\n", _timecode, _opcode, _op1, _ind, _op2);
 }
 
 Instruction::Instruction(const unsigned long ins)
@@ -80,25 +81,25 @@ unsigned int Instruction::getField(unsigned long code, int width, int pos, int b
     // Make a "bits" bit wide mask of 1s
     for (int i = 0; i < bits; i++)
     {
-        mask <<=1;
-        mask |=1;
+        mask <<= 1;
+        mask |= 1;
     }
     // Make a mask for the actual field in the code
     unsigned int mask2 = mask << (width - (pos + bits));
     // chop the field out of the code into "val"
     unsigned long val = code & mask2;
-    // shift val back down 
+    // shift val back down
     val >>= width - (pos + bits);
     return val;
 }
 
 void Instruction::deconstruct(const unsigned long code)
 {
-    _timecode = getField(code, INSTR_BITS, OFFSET_TC,  WIDTH_TC);
-    _opcode   = getField(code, INSTR_BITS, OFFSET_OPC, WIDTH_OPC);
-    _op1      = getField(code, INSTR_BITS, OFFSET_OP1, WIDTH_OP1);
-    _ind      = getField(code, INSTR_BITS, OFFSET_IND, WIDTH_IND);
-    _op2      = getField(code, INSTR_BITS, OFFSET_OP2, WIDTH_OP2);
+    _timecode = getField(code, INSTR_BITS, OFFSET_TC, WIDTH_TC);
+    _opcode = getField(code, INSTR_BITS, OFFSET_OPC, WIDTH_OPC);
+    _op1 = getField(code, INSTR_BITS, OFFSET_OP1, WIDTH_OP1);
+    _ind = getField(code, INSTR_BITS, OFFSET_IND, WIDTH_IND);
+    _op2 = getField(code, INSTR_BITS, OFFSET_OP2, WIDTH_OP2);
 }
 
 struct Channel
@@ -107,6 +108,7 @@ public:
     void set(int v) { value = v; }
     int get() { return value; }
     void dump();
+
 private:
     int pin;
     int value;
@@ -116,54 +118,111 @@ void dumpChannels()
 {
     for (int i = 0; i < NCHANNELS; i++)
     {
-        printf("Channel %x = %d\n", i, chan[i].get());
+        LOGF("Channel %x = %d\n", i, chan[i].get());
     }
 }
 
-std::map<int, int(VM::*)(int,int)> VM::opmap;
+std::map<int, int (VM::*)(int, int)> VM::opmap;
 // typdef int(VM::*opfunc)(int,int);
 
-VM::VM(const char* filename, int stk)
+void VM::start(int address)
 {
-    binfile = OPENFILE(filename, "r");
-    if (!binfile)
-    {
-        LOG("Could not open %s\n", filename);
-    }
+    jumpto(address);
+    exec();
+}
+
+int VM::numVMs = 0;
+
+void VM::startAsTask(int address, int stacksize)
+{
+    progCounter = address;
+#ifdef ARDUINO
+    char buff[8];
+    snprintf(buff, sizeof(buff) - 1, "VM%d", ++numVMs);
+    xTaskCreate(
+        doExec,
+        buff,
+        stacksize,
+        this,
+        tskIDLE_PRIORITY,
+        &xHandle);
+#else
+    // Create a thread here
+    exec();
+#endif
+}
+
+#ifdef ARDUINO
+
+void VM::doExec(void *ptr)
+{
+    VM *vm = reinterpret_cast<VM *>(ptr);
+    vm->exec();
+    vTaskDelete(vm->xHandle);
+    delete(vm);
+}
+
+void VM::createTask(const char *name, int stacksize)
+{
+}
+
+#endif
+
+VM::VM(File f, int stk)
+{
+    binfile = f;
     stackptr = 0;
     zero = 0;
     trace = true;
     stack = NULL;
     setStack(stackSize);
+    progCounter = 0;
 }
 
 void VM::setStack(int size)
 {
-    if (stack) free(stack);
-    stack = (int*)malloc(size * sizeof(int));
+    if (stack)
+        free(stack);
+    stack = (int *)malloc(size * sizeof(int));
     stackSize = size;
 }
 
 VM::~VM()
 {
-    if (binfile) CLOSEFILE(binfile);
 }
 
 void VM::push(int val)
 {
-    stack[stackptr] = val;
-    stackptr++;
-    // Check for overflow
+    if (stackptr < stackSize)
+    {
+        stack[stackptr] = val;
+        stackptr++;
+    }
+    else
+    {
+        LOGF("Stack Overflow at %d", progCounter);
+        abort = true;
+    }
 }
 
 int VM::pop()
 {
-    stackptr--;
-    // Check for underflow
-    return stack[stackptr];
+    int result;
+    if (stackptr > 0)
+    {
+        stackptr--;
+        result = stack[stackptr];
+    }
+    else
+    {
+        LOGF("Stack Underflow at %d", progCounter);
+        result = 0;
+        abort = true;
+    }
+    return result;
 }
 
-bool VM::fetch(unsigned long* val)
+bool VM::fetch(unsigned long *val)
 {
     if (READFILE(binfile, val, INSTR_BYTES) > 0)
     {
@@ -179,17 +238,18 @@ void VM::jumpto(int address)
     SEEKFILE(binfile, progCounter * INSTR_BYTES, SEEKMODE_SET);
 }
 
-
-void VM::exec(int address)
+void VM::exec()
 {
     unsigned long started = millis();
     unsigned long due = started;
-    jumpto(address);
+    jumpto(progCounter);
     while (true)
     {
         unsigned long now = millis();
         int tmpadd = progCounter;
         unsigned long insbin;
+        abort = false;
+
         if (fetch(&insbin))
         {
             Instruction in(insbin);
@@ -198,41 +258,49 @@ void VM::exec(int address)
             if (timecode)
             {
                 due = due + timecode;
-                unsigned int sleeptime=(due - now);
-    
+                unsigned int sleeptime = (due - now);
+
                 delay(sleeptime);
             }
-            int (VM::*func)(int,int) = opmap[in.opcode() & OPC_MASK];
-    
-            if (trace) printf("%10ld %04x: ", millis() - started, tmpadd);
+            int (VM::*func)(int, int) = opmap[in.opcode() & OPC_MASK];
+
+            if (trace)
+                LOGF("%10ld %04x: ", millis() - started, tmpadd);
             if (func)
             {
                 int lval = in.op1();
                 if (in.opcode() & IND_MASK)
                 {
-                // lval is indirect (actual lval is held in %lval)
+                    // lval is indirect (actual lval is held in %lval)
                     lval &= REG_MASK;
                     lval = reg[lval];
                 }
                 int rval = in.op2();
                 if (in.ind())
                 {
-                    if (rval > NCHANNELS) rval = reg[rval & REG_MASK];
-                    else rval = chan[rval].get();
+                    if (rval > NCHANNELS)
+                        rval = reg[rval & REG_MASK];
+                    else
+                        rval = chan[rval].get();
                 }
-                if ((this->*func)(lval, rval) < 0) break;;
+                if ((this->*func)(lval, rval) < 0)
+                    break;
+                ;
             }
             else
             {
-                printf("Unknown opcode %x\n", in.opcode());
-                break;
+                LOGF("Unknown opcode %x at %d\n", in.opcode(), progCounter);
+                abort = true;
             }
+            if (abort)
+                break;
         }
-        else break; // fallen off the end;
+        else
+            break; // fallen off the end;
     }
 }
 
-bool isreg(int* index)
+bool isreg(int *index)
 {
     int reg = false;
     if (*index > NCHANNELS)
@@ -245,14 +313,16 @@ bool isreg(int* index)
 
 int VM::func_nop(int, int)
 {
-    printf("NOP\n");
+    if (trace)
+        LOGF("NOP\n");
     return 0;
 }
 
 int VM::func_set(int lval, int rval)
 {
     bool lvalreg = isreg(&lval);
-    if (trace) printf("SET %s%d to %d\n", (lvalreg ? "%" : "#"), lval, rval);
+    if (trace)
+        LOGF("SET %s%d to %d\n", (lvalreg ? "%" : "#"), lval, rval);
     if (lvalreg)
     {
         reg[lval] = rval;
@@ -266,7 +336,8 @@ int VM::func_set(int lval, int rval)
 
 int VM::func_clr(int, int)
 {
-    if (trace) printf("CLR\n");
+    if (trace)
+        LOGF("CLR\n");
     for (int i = 0; i < NCHANNELS; i++)
     {
         chan[i].set(0);
@@ -277,47 +348,54 @@ int VM::func_clr(int, int)
 int VM::func_add(int lval, int rval)
 {
     bool lvalreg = isreg(&lval);
-    if (trace) printf("ADD %d to %s%d ", rval, (lvalreg ? "%" : "#"), lval);
+    if (trace)
+        LOGF("ADD %d to %s%d ", rval, (lvalreg ? "%" : "#"), lval);
     if (lvalreg)
     {
         reg[lval] = (reg[lval] + rval) % MOD_OP2;
-        if (trace) printf("(=%d)\n", reg[lval]);
+        if (trace)
+            LOGF("(=%d)\n", reg[lval]);
         zero = (reg[lval] == 0);
     }
     else
     {
         chan[lval].set((chan[lval].get() + rval) % MOD_OP2);
-        if (trace) printf("(=%d)\n", chan[lval].get());
+        if (trace)
+            LOGF("(=%d)\n", chan[lval].get());
         zero = (chan[lval].get() == 0);
     }
-    
+
     return 0;
 }
 
 int VM::func_sub(int lval, int rval)
 {
     bool lvalreg = isreg(&lval);
-    if (trace) printf("SUB %d from %s%d", rval, (lvalreg ? "%" : "#"), lval);
+    if (trace)
+        LOGF("SUB %d from %s%d", rval, (lvalreg ? "%" : "#"), lval);
     if (lvalreg)
     {
         reg[lval] = (reg[lval] - rval) % MOD_OP2;
-        if (trace) printf("(=%d)\n", reg[lval]);
+        if (trace)
+            LOGF("(=%d)\n", reg[lval]);
         zero = (reg[lval] == 0);
     }
     else
     {
         chan[lval].set((chan[lval].get() - rval) % MOD_OP2);
-        if (trace) printf("(=%d)\n", chan[lval].get());
+        if (trace)
+            LOGF("(=%d)\n", chan[lval].get());
         zero = (chan[lval].get() == 0);
     }
-    
+
     return 0;
 }
 
 int VM::func_jmp(int, int rval)
 {
     jumpto(rval);
-    if (trace) printf("JMP to %d\n", rval);
+    if (trace)
+        LOGF("JMP to %d\n", rval);
     return 0;
 }
 
@@ -325,7 +403,8 @@ int VM::func_jsr(int, int rval)
 {
     push(progCounter);
     jumpto(rval);
-    if (trace) printf("JSR to %d\n", rval);
+    if (trace)
+        LOGF("JSR to %d\n", rval);
     return 0;
 }
 
@@ -334,11 +413,13 @@ int VM::func_jnz(int, int rval)
     if (!zero)
     {
         jumpto(rval);
-        if (trace) printf("JNZ to %d\n", rval);
+        if (trace)
+            LOGF("JNZ to %d\n", rval);
     }
     else
     {
-        if (trace) printf("JNZ ----\n");
+        if (trace)
+            LOGF("JNZ ----\n");
     }
     return 0;
 }
@@ -347,13 +428,15 @@ int VM::func_ret(int, int)
 {
     progCounter = pop();
     jumpto(progCounter);
-    if (trace) printf("RET (to %d)\n", progCounter);
+    if (trace)
+        LOGF("RET (to %d)\n", progCounter);
     return 0;
 }
 
 int VM::func_hlt(int, int)
 {
-    if (trace) printf("HLT\n");
+    if (trace)
+        LOGF("HLT\n");
     return -1;
 }
 
@@ -370,7 +453,8 @@ int VM::func_psh(int lval, int)
         value = chan[lval].get();
     }
     push(value);
-    if (trace) printf("PSH %s%d (%d)\n", (lvalreg ? "%" : "#"), lval, value);
+    if (trace)
+        LOGF("PSH %s%d (%d)\n", (lvalreg ? "%" : "#"), lval, value);
     return 0;
 }
 
@@ -386,20 +470,22 @@ int VM::func_pop(int lval, int)
     {
         chan[lval].set(value);
     }
-    if (trace) printf("POP %s%d (%d)\n", (lvalreg ? "%" : "#"), lval, value);
-    
+    if (trace)
+        LOGF("POP %s%d (%d)\n", (lvalreg ? "%" : "#"), lval, value);
+
     return 0;
 }
 
 int VM::func_run(int, int rval)
 {
-    if (trace) printf("RUN at %d\n", rval);
+    if (trace)
+        LOGF("RUN at %d\n", rval);
     return 0;
 }
 
 void VM::buildOpMap()
 {
-    const char* mnemonic;
+    const char *mnemonic;
     for (int i = 0; (mnemonic = opcodedef[i].mnemonic); i++)
     {
         int opcode = opcodedef[i].code;
@@ -455,20 +541,54 @@ void VM::buildOpMap()
         {
             opmap[opcode] = &VM::func_run;
         }
-        else fprintf(stderr, "Unknown mnemonic: %s\n", mnemonic);
+        else
+            LOGF("BuildOpMap: Unknown mnemonic: %s\n", mnemonic);
     }
 }
 
 #ifndef ARDUINO
 
-int main(int argc,char* argv[])
+int main(int argc, char *argv[])
 {
-    VM::buildOpMap();
-    VM vm("seq.bin");
-    vm.exec(0);
-    // vm.dumpRegisters();
-    // dumpChannels();
-    return 0;
+    int opt;
+    int exitcode = 0;
+    bool trace = false;
+
+    while ((opt = getopt(argc, argv, "t")) != -1)
+    {
+        switch (opt)
+        {
+        case 'n':
+            break;
+        case 't':
+            trace = true;
+            break;
+        default: /* '?' */
+            exitcode = -1;
+        }
+    }
+    if ((optind >= argc) || (exitcode < 0))
+    {
+        LOGF("Usage: [-t] %s BINARYFILE\n", argv[0]);
+        exitcode = -1;
+    }
+    else
+    {
+        VM::buildOpMap();
+        File fp = OPENFILE(argv[optind], "r");
+        if (fp)
+        {
+            VM vm(fp);
+            vm.settrace(trace);
+            vm.start();
+            CLOSEFILE(fp);
+        }
+        else
+        {
+            LOGF("Could not open binary file %s\n", argv[optind]);
+        }
+    }
+    return exitcode;
 }
 
 #endif

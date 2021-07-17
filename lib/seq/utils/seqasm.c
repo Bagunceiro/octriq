@@ -1,10 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
+#include <getopt.h>
+
 #include "seq.tab.h"
 #include "seqlang.h"
 #include "seqasm.h"
+
+extern FILE* yyin;
 
 int line = 0;
 int address = 0;
@@ -421,27 +427,87 @@ void dumpBinary()
 
 int main(int argc, char* argv[])
 {
-    binfile = fopen("seq.bin", "w+");
-    address = 0;
-    nextLine();
-    yyparse();
-    if (errors)
+    int opt;
+    int exitcode = 0;
+    char* binary = NULL;
+    char* input = NULL;
+    FILE* outfile = stdout;
+
+    while ((opt = getopt(argc, argv, "i:o:")) != -1)
     {
-        fprintf(stderr, "Errors: %d\n", errors);
+        switch (opt)
+        {
+        case 'i':
+            input = optarg;
+            break;
+        case 'o':
+            binary = optarg;
+            break;
+        default:
+            exitcode = -1;
+            break;
+        }
     }
-    else fprintf(stderr, "Processed %d source -> %d binary\n", line-1, address);
-    // dumpBinary();
-    resolveFwd();
-    fclose(binfile);
-    // printf("Symbols\n");
-    // printf("=======\n");
-    // dumpSymbolTable();
-    // printf("Forward Refs\n");
-    // printf("============\n");
-    // dumpFwds();
-    // printf("Binary\n");
-    // printf("======\n");
-    // dumpBinary();
-    
-    return 0;
+
+    if (binary)
+    {
+        outfile = fopen(binary, "w");
+        if (!outfile)
+        {
+            perror("Could not open output");
+            exitcode = -2;
+        }
+    }
+
+    if (input)
+    {
+        yyin = fopen(input, "r");
+        if (!yyin)
+        {
+            perror("Could not open input");
+            exitcode = -2;
+        }
+    }
+
+    if (isatty(fileno(outfile)))
+    {
+        fprintf(stderr, "Cannot write binary to a terminal\n");
+        exitcode = -3;
+    }
+
+    if (exitcode == 0)
+    {
+        char *tmpfilename =strdup("/tmp/seq.bin.XXXXXX");
+        int tmpfd = mkstemp(tmpfilename);
+        binfile = fdopen(tmpfd, "w+");
+        if (binfile)
+        {
+            address = 0;
+            nextLine();
+            yyparse();
+            resolveFwd();
+            if (errors)
+            {
+                fprintf(stderr, "Errors: %d\n", errors);
+            }
+            else
+            {
+                fseek(binfile, 0, SEEK_SET);
+                unsigned char c;
+                while (fread(&c, 1, 1, binfile))
+                {
+                    fwrite(&c, 1, 1, outfile);
+                }
+                fprintf(stderr, "Processed %d source -> %d binary\n", line-1, address);
+            }
+            fclose(binfile);
+            unlink(tmpfilename);
+            if (binary) fclose(outfile); // ie if it's not stdout
+        }
+        else
+        {
+            perror("Could not open temporary file");
+        }
+    }
+    return exitcode;
 }

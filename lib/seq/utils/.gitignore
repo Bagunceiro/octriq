@@ -10,3 +10,4 @@ seqdis
 seqasm
 seqvm
 *.bin
+seq.output

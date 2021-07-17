@@ -85,17 +85,42 @@ void connectToWiFi()
   }
 }
 
+bool checkLittleEndian()
+{
+  uint8_t test = 0x1;
+  unsigned int z = test;
+  uint8_t* s = reinterpret_cast<uint8_t*>(&z);
+  uint8_t c = s[sizeof(z)-1];
+  return(c = test);
+}
+
 void setup()
 {
+  const char *filename = "/seq.bin";
   extern void initSysUpdate();
   Serial.begin(115200);
+
+  if (!checkLittleEndian())
+  {
+    Serial.println("Code is not little endian");
+    exit(-1);
+  }
+
   LITTLEFS.begin();
   connectToWiFi();
   initSysUpdate();
   startCmdTask();
   VM::buildOpMap();
-  VM vm("seq.bin");
-  // vm.exec(0); in a task!!!
+  File f = LITTLEFS.open(filename);
+  if (f)
+  {
+    VM* vm = new VM(f);
+
+    vm->settrace(true);
+    vm->startAsTask(0, 4096);
+  }
+  else
+    Serial.printf("Could not open binary file %s\n", filename);
 }
 
 void loop()

@@ -1,6 +1,6 @@
 all: seqasm seqdis seqvm
 clean:
-	rm *.o seqasm seqdis seqvm lex.yy.c seq.tab.c
+	rm -f *.o lex.yy.c seq.tab.c *.bin
 
 CXXFLAGS=-I ../src
 CFLAGS=-I ../src
@@ -31,7 +31,7 @@ seq.tab.o: seq.tab.c seq.tab.h seqasm.h
 	$(CC) $(CFLAGS) -c seq.tab.c
 
 seq.tab.c: seq.y
-	bison -d -v -Wconflicts-sr seq.y
+	bison -d -Wconflicts-sr seq.y
 
 lex.yy.c: seq.l
 	flex seq.l
