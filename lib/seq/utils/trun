@@ -1,0 +1,12 @@
+	jmp start;
+blink:
+	set #0, 0;
+500	set #0, 1023;
+500	jmp blink;
+
+start:
+	run blink;
+
+loop:
+	set #1, 32;
+1000	jmp loop;

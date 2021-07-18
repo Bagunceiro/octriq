@@ -33,9 +33,20 @@ Text::Text()
     memory = NULL;
 }
 
+Text& Text::operator=(const Text& rhs)
+{
+    memory = rhs.memory;
+    size = rhs.size;
+    return *this;
+}
+
+Text::Text(const Text& rhs)
+{
+    *this = rhs;
+}
+
 Text::~Text()
 {
-    free(memory);
 }
 
 unsigned int Text::load(File f)
@@ -43,11 +54,12 @@ unsigned int Text::load(File f)
     SEEKFILE(f, 0, SEEKMODE_END);
     unsigned int bytes = POSINFILE(f);
     size = bytes/INSTR_BYTES;
-    memory = reinterpret_cast<uint32_t *>(malloc(bytes));
+    std::shared_ptr<uint32_t> sh1(new uint32_t[size]);
+    memory = sh1;
     SEEKFILE(f, 0, SEEKMODE_SET);
     for (int i = 0; i < size; i++)
     {
-        READFILE(f, &memory[i], INSTR_BYTES);
+        READFILE(f, &(memory.get()[i]), INSTR_BYTES);
     }
     return size;
 }
@@ -138,6 +150,8 @@ int VM::numVMs = 0;
 
 void VM::startAsTask(int address, int stacksize)
 {
+    LOGF("startAsTask(%d, %d)\n", address, stacksize);
+    LOGF("Memory size is %d\n", txt.getSize());
     progCounter = address;
 #ifdef ARDUINO
     char buff[8];
@@ -181,6 +195,23 @@ VM::VM(File f, int stk)
     setStack(stackSize);
     progCounter = 0;
     txt.load(f);
+}
+
+VM& VM::operator=(const VM& rhs)
+{
+    txt = rhs.txt;
+    stackptr = 0;
+    stackSize = rhs.stackSize;
+    stack = NULL;
+    setStack(stackSize);
+    progCounter = 0;
+    zero = 0;
+    return *this;
+}
+
+VM::VM(const VM& rhs)
+{
+    *this = rhs;
 }
 
 void VM::setStack(int size)
@@ -493,6 +524,11 @@ int VM::func_run(int, int rval)
 {
     if (trace)
         LOGF("RUN at %d\n", rval);
+    VM* vm = new VM(*this);
+    vm->settrace(true);
+    vm->startAsTask(rval);
+    Serial.printf("Created new VM\n");
+    Serial.flush();
     return 0;
 }
 
@@ -608,6 +644,12 @@ int main(int argc, char *argv[])
         if (fp)
         {
             VM vm(fp);
+            printf("vm memory refs is %d\n", vm.memrefs());
+            {
+                VM vm2 = vm;
+                printf("vm2 memory refs is %d\n", vm2.memrefs());
+            }
+            printf("vm memory refs is now %d\n", vm.memrefs());
             vm.settrace(trace);
             vm.start();
             CLOSEFILE(fp);

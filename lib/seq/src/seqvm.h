@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 
 #ifdef ARDUINO
 #include <LITTLEFS.h>
@@ -31,23 +32,35 @@
 #define LOGF(...) printf(__VA_ARGS__)
 #endif
 
+struct Memory
+{
+    uint32_t* int32s;
+};
+
 class Text
 {
     public:
     Text();
+    Text(const Text& rhs);
+    Text& operator=(const Text& rhs);
     virtual ~Text();
-    uint32_t operator[](int index) { return memory[index]; }
+    // uint32_t getInt(int index);
     unsigned int load(File f);
     size_t getSize() { return size; }
+    uint32_t operator[](int i) { return (memory.get)()[i]; }
+    int memrefs() { return memory.use_count(); }
     private:
     size_t size;
-    uint32_t* memory;
+    // uint32_t* memory;
+    std::shared_ptr<uint32_t> memory;
 };
 
 class VM
 {
 public:
     VM(File f, int stk = 16);
+    VM(const VM& rhs);
+    VM& operator=(const VM& rhs);
     virtual ~VM();
     void exec();
     static void buildOpMap();
@@ -60,6 +73,7 @@ public:
     void start(int address = 0);
     void startAsTask(int address, int stacksize = 4096);
     void settrace(bool t) { trace = t; }
+    int memrefs() { return txt.memrefs(); }
 private:
 #ifdef ARDUINO
     void createTask(const char* n, int stack);
