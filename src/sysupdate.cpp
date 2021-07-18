@@ -74,14 +74,28 @@ void getFile(const char* url, const char* target)
             {
                 // String payload = http.getString();
                 Stream& s = http.getStream();
-                uint8_t buffer[32];
-                size_t l;
-                while ((l = s.readBytes(buffer, sizeof(buffer)-1)))
+//                uint8_t buffer[128];
+//                size_t l;
+                while (true)
                 {
-                    f.write(buffer, l);
+                    // Serial.printf("Reading\n");
+                    // Serial.flush();
+                    int c = s.read();
+                    if (c < 0) break;
+                    f.write(c);
+//                    Serial.print(".");
+//                    l = s.readBytes(buffer, sizeof(buffer)-1);
+//                    if (l == 0) break;
+//                    Serial.printf("Read %d\n", l);
+//                    Serial.flush();
+//                    f.write(buffer, l);
+//                    Serial.printf("Copied %d\n", l);
+//                    Serial.flush();
+                    // delay(5);
                 }
                 // f.print(payload.c_str());
                 f.close();
+//                Serial.println("");
             }
             else
                 client.printf("Could not open %s\n",target);
@@ -133,7 +147,7 @@ void wget(int argc, char *argv[])
             fname[0] = '/';
         }
         client.printf("getFile(%s,%s)\n", url.c_str(), fname);
-        // getFile(url.c_str(), fname);
+        getFile(url.c_str(), fname);
     }
 }
 

@@ -141,14 +141,71 @@ int parse(const char *line, std::vector<String> &argv)
 
 const char *prompt = "> ";
 
-void run(int argc, char* argv[])
+extern int listvms(Print& out);
+
+void list(int argc, char *argv[])
 {
-  extern void runBinary(char*);
-    if (argc != 2)
+  if (argc != 1)
+  {
+    client.printf("%s\n", argv[0]);
+  }
+  else
+  {
+    listvms(client);
+  }
+}
+
+void kill(int argc, char *argv[])
+{
+  extern int killvm(int);
+  if (argc != 2)
+  {
+    client.printf("%s JOBNO ...\n", argv[0]);
+  }
+  else
+  {
+    for (int i = 1; i < argc; i++)
     {
-      Serial.printf("%s BINFILE");
+      int jobno = atoi(argv[i]);
+      if (jobno > 0)
+      {
+        int res = killvm(jobno);
+        if (res >= 0)
+        {
+          client.printf("VM %s killed\n", argv[i]);
+        }
+        else
+        {
+          client.printf("VM %s not found\n", argv[i]);
+        }
+      }
+      else
+      {
+        client.printf("VM number %s out of range\n", argv[i]);
+      }
     }
-    else runBinary(argv[1]);
+  }
+}
+
+void run(int argc, char *argv[])
+{
+  extern int runBinary(char *);
+  if (argc != 2)
+  {
+    Serial.printf("%s BINFILE", argv[0]);
+  }
+  else
+  {
+    int jobno = runBinary(argv[1]);
+    if (jobno >= 0)
+    {
+      client.printf("Job #%d\n", jobno);
+    }
+    else
+    {
+      client.printf("Failed\n");
+    }
+  }
 }
 
 void exit(int argc, char *argv[])
@@ -163,10 +220,8 @@ void exit(int argc, char *argv[])
 
 void help(int argc, char *argv[]);
 
-
-
 std::vector<cmdDescriptor> cmdTable = {
-  // You can also add entries using "addToCmdTable(...)"
+    // You can also add entries using "addToCmdTable(...)"
     /*
     cmdEntry(ar, analogRead, ar PIN),
     cmdEntry(archive, set or read the archive server name, archive[SERVER]),
@@ -178,7 +233,9 @@ std::vector<cmdDescriptor> cmdTable = {
     */
     cmdEntry(exit, , ),
     cmdEntry(help, , ),
-    cmdEntry(run, , )
+    cmdEntry(run, , ),
+    cmdEntry(list, , ),
+    cmdEntry(kill, , )
     /*
     cmdEntry(ls, , ),
     cmdEntry(mkdir, make directory, mkdir DIR),

@@ -74,6 +74,11 @@ public:
     void startAsTask(int address, int stacksize = 4096);
     void settrace(bool t) { trace = t; }
     int memrefs() { return txt.memrefs(); }
+    static int kill(int);
+    int getNumber() { return vmnumber; }
+    #ifdef ARDUINO
+    static int listTasks(Print& out);
+    #endif
 private:
 #ifdef ARDUINO
     void createTask(const char* n, int stack);
@@ -87,6 +92,7 @@ private:
     int *stack;
     uint8_t stackptr;
     int progCounter;
+    int vmnumber;
     void push(int val);
     int pop();
     bool fetch(unsigned long *instr);
@@ -100,6 +106,9 @@ private:
     int func_jmp(int, int);
     int func_jsr(int, int);
     int func_jnz(int, int);
+    int func_jz(int, int);
+    int func_jnc(int, int);
+    int func_jc(int, int);
     int func_ret(int, int);
     int func_hlt(int, int);
     int func_psh(int, int);
@@ -107,7 +116,10 @@ private:
     int func_run(int, int);
     static std::map<int, int (VM::*)(int, int)> opmap;
     bool zero;
+    bool carry;
     bool trace;
     static int numVMs;
     bool abort;
+    static std::map<int, VM*> tasklist;
+    bool halt;
 };

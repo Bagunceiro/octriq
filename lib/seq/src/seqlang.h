@@ -14,11 +14,14 @@ const struct OpcodeDef_struct
 { "jmp",  5, 3 },
 { "jsr",  6, 3 },
 { "jnz",  7, 3 },
-{ "ret",  8, 0 },
-{ "hlt",  9, 0 },
-{ "psh", 10, 1 },
-{ "pop", 11, 1 },
-{ "run", 12, 3 },
+{ "jz",   8, 3 },
+{ "jnc",  9, 3 },
+{ "jc",  10, 3 },
+{ "ret", 11, 0 },
+{ "hlt", 12, 0 },
+{ "psh", 13, 1 },
+{ "pop", 14, 1 },
+{ "run", 15, 3 },
 { (const char*)0,  0 }};
 
 #define BYTE_BITS (8)

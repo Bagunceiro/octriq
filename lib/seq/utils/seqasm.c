@@ -10,24 +10,26 @@
 #include "seqlang.h"
 #include "seqasm.h"
 
-extern FILE* yyin;
+extern FILE *yyin;
 
 int line = 0;
 int address = 0;
 int errors = 0;
 
 #define MAX_SYMBOLS (64)
-#define MAX_FWDS    (64)
+#define MAX_FWDS (64)
 
-FILE* binfile;
+FILE *binfile;
 
 struct Node_struct
 {
-    enum {
+    enum
+    {
         NODE_INT,
         NODE_ID,
     } datatype;
-    enum {
+    enum
+    {
         NODE_VAL,
         NODE_OPCODE,
         NODE_CHANNEL,
@@ -35,22 +37,23 @@ struct Node_struct
         NODE_INDIRECT,
         NODE_TIMECODE
     } nodetype;
-    union {
+    union
+    {
         int intval;
-        char* strval;
+        char *strval;
     } val;
 } *node = null;
 
 struct Symbol_struct
 {
-    char* name;
+    char *name;
     int val;
 } symbol[MAX_SYMBOLS];
 int nsymbols = 0;
 
 struct FwdRef_struct
 {
-    char* name;
+    char *name;
     int add;
     int field;
 } fwd[MAX_FWDS];
@@ -60,10 +63,10 @@ typedef struct FwdRef_struct FwdRef;
 typedef struct Node_struct Node;
 typedef struct Symbol_struct Symbol;
 
-Node* parsedLine[8];
+Node *parsedLine[8];
 int parsepos = 0;
 
-int findOpcode(char* mnemonic)
+int findOpcode(char *mnemonic)
 {
     int result = -1;
     for (int i = 0; opcodedef[i].mnemonic; i++)
@@ -77,17 +80,17 @@ int findOpcode(char* mnemonic)
     return result;
 }
 
-int yyerror(const char* msg)
+int yyerror(const char *msg)
 {
-    fprintf(stderr,"Line %d: %s\n", line, msg);
+    fprintf(stderr, "Line %d: %s\n", line, msg);
     errors++;
     return 0;
 }
 
-int findSymbol(char* name)
+int findSymbol(char *name)
 {
     int val = -1;
-    for(int i = 0; i < nsymbols; i++)
+    for (int i = 0; i < nsymbols; i++)
     {
         if (strcmp(symbol[i].name, name) == 0)
         {
@@ -98,7 +101,7 @@ int findSymbol(char* name)
     return val;
 }
 
-void addFwd(char* name, int add, int field)
+void addFwd(char *name, int add, int field)
 {
     fwd[nfwd].name = strdup(name);
     fwd[nfwd].add = add;
@@ -106,21 +109,21 @@ void addFwd(char* name, int add, int field)
     nfwd++;
 }
 
-char* nodeval(Node* n)
+char *nodeval(Node *n)
 {
-    char* val = n->val.strval;
+    char *val = n->val.strval;
     if (n->datatype == NODE_INT)
     {
-       static char buffer[16];
-       snprintf(buffer, sizeof(buffer) -1, "%d", n->val.intval);
-       val = buffer;
+        static char buffer[16];
+        snprintf(buffer, sizeof(buffer) - 1, "%d", n->val.intval);
+        val = buffer;
     }
     return val;
 }
 
-Node* makeNode()
+Node *makeNode()
 {
-    Node* n = (Node*)malloc(sizeof(Node));
+    Node *n = (Node *)malloc(sizeof(Node));
     parsedLine[parsepos] = n;
     parsepos++;
     return n;
@@ -135,7 +138,7 @@ void makeIntNode(int value)
     node->val.intval = value;
 }
 
-void makeIdNode(char* value)
+void makeIdNode(char *value)
 {
     // printf("Making id %s\n", value);
     node = makeNode();
@@ -150,7 +153,8 @@ void isOpcode()
     // printf("  Is opcode: %s\n", nodeval(node));
 
     int opcode = findOpcode(node->val.strval);
-    if (opcode < 0) yyerror("Unknown opcode");
+    if (opcode < 0)
+        yyerror("Unknown opcode");
     free(node->val.strval);
     node->datatype = NODE_INT;
     node->val.intval = opcode;
@@ -158,12 +162,13 @@ void isOpcode()
 
 void isRegister()
 {
-    if ((node->val.intval & REG_MASK) >= NREGISTERS)
-    {
-        char buffer[48];
-        snprintf(buffer, sizeof(buffer)-1, "Register out of range (0-%d)", NREGISTERS -1);
-        yyerror(buffer);
-    }
+    // if ((node->val.intval & REG_MASK) >= NREGISTERS)
+    if ((node->datatype == NODE_INT) && ((node->val.intval) >= NREGISTERS))
+        {
+            char buffer[48];
+            snprintf(buffer, sizeof(buffer) - 1, "Register %x out of range (0-%d)", node->val.intval, NREGISTERS - 1);
+            yyerror(buffer);
+        }
     node->nodetype = NODE_REGISTER;
     // printf("  Is register: %s\n", nodeval(node));
 }
@@ -176,10 +181,10 @@ void isIndirect()
 
 void isChannel()
 {
-    if (node->val.intval >= NCHANNELS)
+    if ((node->datatype == NODE_INT) && (node->val.intval >= NCHANNELS))
     {
         char buffer[48];
-        snprintf(buffer, sizeof(buffer)-1, "Channel out of range (0-%d)", NCHANNELS -1);
+        snprintf(buffer, sizeof(buffer) - 1, "Channel out of range (0-%d)", NCHANNELS - 1);
         yyerror(buffer);
     }
     node->nodetype = NODE_CHANNEL;
@@ -188,10 +193,10 @@ void isChannel()
 
 void isTimecode()
 {
-    if (node->val.intval >= MOD_TC)
+    if ((node->datatype == NODE_INT) && (node->val.intval >= MOD_TC))
     {
         char buffer[48];
-        snprintf(buffer, sizeof(buffer)-1, "Timecode out of range (0-%d)", MOD_TC -1);
+        snprintf(buffer, sizeof(buffer) - 1, "Timecode out of range (0-%d)", MOD_TC - 1);
         yyerror(buffer);
     }
     node->nodetype = NODE_TIMECODE;
@@ -215,10 +220,10 @@ void nextLine()
     // printf("Line %d\n", line);
 }
 
-void createSymbol(char* name, int val)
+void createSymbol(char *name, int val)
 {
     symbol[nsymbols].name = strdup(name);
-    symbol[nsymbols].val  = val;
+    symbol[nsymbols].val = val;
     nsymbols++;
 }
 
@@ -239,40 +244,39 @@ void outBin(unsigned int val, int bits)
     unsigned long mask = 1;
     mask <<= bits - 1;
     int bit = 0;
-    while(mask)
+    while (mask)
     {
         putchar((val & mask) ? '1' : '0');
         mask >>= 1;
         bit++;
-        switch(bit)
+        switch (bit)
         {
-        case WIDTH_TC:                                       // 10:
-        case WIDTH_TC + WIDTH_OPC:                           // 16:
-        case WIDTH_TC + WIDTH_OPC + WIDTH_OP1:               // 21:
-        case WIDTH_TC + WIDTH_OPC + WIDTH_OP1 + WIDTH_IND:   // 22:
-        putchar('-');
+        case WIDTH_TC:                                     // 10:
+        case WIDTH_TC + WIDTH_OPC:                         // 16:
+        case WIDTH_TC + WIDTH_OPC + WIDTH_OP1:             // 21:
+        case WIDTH_TC + WIDTH_OPC + WIDTH_OP1 + WIDTH_IND: // 22:
+            putchar('-');
         }
     }
-    putchar ('\n');
+    putchar('\n');
 }
 
-void setField(unsigned int* code, int width, int val, int pos, int bits)
+void setField(unsigned int *code, int width, int val, int pos, int bits)
 {
     int offset = (sizeof(code) * BYTE_BITS) - width; // bit pos in code that corresponds to pos 0
     int mask = 0;
     for (int i = 0; i < bits; i++)
     {
-        mask <<=1;
-        mask |=1;
+        mask <<= 1;
+        mask |= 1;
     }
     val &= mask;
     mask <<= width - (pos + bits);
     mask = ~mask;
-    val  <<= width - (pos + bits);
+    val <<= width - (pos + bits);
 
     *code &= mask;
     *code |= val;
-
 }
 
 void constructInstruction()
@@ -286,8 +290,8 @@ void constructInstruction()
     int rvaltype = 0;
 
     int i;
-    
-/*
+
+    /*
     for (i = 0; i < parsepos; i++)
     {
         printf(" %s", nodeval(parsedLine[i]));
@@ -296,7 +300,7 @@ void constructInstruction()
 */
 
     int gotlval = 0;
-    for(int count = 0; count < parsepos; count++)
+    for (int count = 0; count < parsepos; count++)
     {
         int field = -1;
         int val = -1; // signals forward reference
@@ -327,7 +331,7 @@ void constructInstruction()
                 rvaltype = 1;
                 field = 4;
             }
-            else 
+            else
             {
                 lval = val;
                 field = 2;
@@ -341,8 +345,17 @@ void constructInstruction()
             opcode |= IND_MASK;
             break;
         case NODE_VAL:
-            field = 4;
-            rval = val;
+            if ((node->datatype == NODE_INT) && (node->val.intval >= MOD_OP2))
+            {
+                char buffer[48];
+                snprintf(buffer, sizeof(buffer) - 1, "Value out of range (0-%d)", MOD_OP2 - 1);
+                yyerror(buffer);
+            }
+            else
+            {
+                field = 4;
+                rval = val;
+            }
         }
         if (val < 0)
         {
@@ -357,7 +370,7 @@ void constructInstruction()
     setField(&code, INSTR_BITS, lval, OFFSET_OP1, WIDTH_OP1);
     setField(&code, INSTR_BITS, rvaltype, OFFSET_IND, WIDTH_IND);
     setField(&code, INSTR_BITS, rval, OFFSET_OP2, WIDTH_OP2);
-    fwrite(&code, INSTR_BITS/BYTE_BITS, 1, binfile);
+    fwrite(&code, INSTR_BITS / BYTE_BITS, 1, binfile);
     // outBin(code, INSTR_BITS);
 
     address++;
@@ -383,30 +396,31 @@ void resolveFwd()
 {
     for (int i = 0; i < nfwd; i++)
     {
-        int pos=-1, bits=-1;
+        int pos = -1, bits = -1;
         switch (fwd[i].field)
         {
-            case 0:
-                pos = OFFSET_TC, bits = WIDTH_TC;
-                break;
-            case 1:
-                pos = OFFSET_OPC, bits = WIDTH_OPC;
-                break;
-            case 2:
-                pos = OFFSET_OP1, bits = WIDTH_OP1;
-                break;
-            case 3:
-                pos = OFFSET_IND, bits = WIDTH_IND;
-                break;
-            case 4:
-                pos = OFFSET_OP2, bits = WIDTH_OP2;
-                break;
+        case 0:
+            pos = OFFSET_TC, bits = WIDTH_TC;
+            break;
+        case 1:
+            pos = OFFSET_OPC, bits = WIDTH_OPC;
+            break;
+        case 2:
+            pos = OFFSET_OP1, bits = WIDTH_OP1;
+            break;
+        case 3:
+            pos = OFFSET_IND, bits = WIDTH_IND;
+            break;
+        case 4:
+            pos = OFFSET_OP2, bits = WIDTH_OP2;
+            break;
         }
         int code;
         int val = findSymbol(fwd[i].name);
         fseek(binfile, (fwd[i].add) * INSTR_BYTES, SEEK_SET);
         fread(&code, INSTR_BYTES, 1, binfile);
-        if (pos >= 0) setField(&code, INSTR_BITS, val, pos, bits);
+        if (pos >= 0)
+            setField(&code, INSTR_BITS, val, pos, bits);
         fseek(binfile, -INSTR_BYTES, SEEK_CUR);
         fwrite(&code, INSTR_BYTES, 1, binfile);
     }
@@ -417,7 +431,7 @@ void dumpBinary()
     int add = 0;
     int code;
     FILE *fp = fopen("seq.bin", "r");
-    while (fread(&code, INSTR_BYTES, 1, binfile) >0)
+    while (fread(&code, INSTR_BYTES, 1, binfile) > 0)
     {
         printf("%04x ", add++);
         outBin(code, INSTR_BITS);
@@ -425,13 +439,13 @@ void dumpBinary()
     fclose(fp);
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     int opt;
     int exitcode = 0;
-    char* binary = NULL;
-    char* input = NULL;
-    FILE* outfile = stdout;
+    char *binary = NULL;
+    char *input = NULL;
+    FILE *outfile = stdout;
 
     while ((opt = getopt(argc, argv, "i:o:")) != -1)
     {
@@ -447,6 +461,10 @@ int main(int argc, char* argv[])
             exitcode = -1;
             break;
         }
+    }
+    if (optind < argc)
+    {
+        input = argv[optind];
     }
 
     if (binary)
@@ -477,7 +495,7 @@ int main(int argc, char* argv[])
 
     if (exitcode == 0)
     {
-        char *tmpfilename =strdup("/tmp/seq.bin.XXXXXX");
+        char *tmpfilename = strdup("/tmp/seq.bin.XXXXXX");
         int tmpfd = mkstemp(tmpfilename);
         binfile = fdopen(tmpfd, "w+");
         if (binfile)
@@ -498,11 +516,12 @@ int main(int argc, char* argv[])
                 {
                     fwrite(&c, 1, 1, outfile);
                 }
-                fprintf(stderr, "Processed %d source -> %d binary\n", line-1, address);
+                fprintf(stderr, "Processed %d source -> %d binary\n", line - 1, address);
             }
             fclose(binfile);
             unlink(tmpfilename);
-            if (binary) fclose(outfile); // ie if it's not stdout
+            if (binary)
+                fclose(outfile); // ie if it's not stdout
         }
         else
         {

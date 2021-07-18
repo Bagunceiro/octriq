@@ -1,7 +1,15 @@
 reg=4
+	clr;
+start:
 	set %reg,8;
 loop:
-	set (%reg),55;
 1000	sub %reg,1;
+	set (%reg),0;
         jnz loop;
+	set %reg,8;
+loop2:
+1000	sub %reg,1;
+	set (%reg),1023;
+        jnz loop2;
+        jmp start;
 800	hlt;

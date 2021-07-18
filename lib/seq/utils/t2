@@ -1,8 +1,8 @@
 reg=4
-	set %reg,8;
+	set %4,8;
 loop:
-	set (%reg),55;
+	set (%reg),1023;
 1000	sub %reg,1;
-        jnz loop;
+        jnc loop;
 	nop;
 800	hlt;
