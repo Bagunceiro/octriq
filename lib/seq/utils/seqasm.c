@@ -34,8 +34,10 @@ struct Node_struct
         NODE_OPCODE,
         NODE_CHANNEL,
         NODE_REGISTER,
-        NODE_INDIRECT,
-        NODE_TIMECODE
+        //        NODE_INDIRECT,
+        NODE_TIMECODE,
+        NODE_REG_INDIRECT,
+        NODE_CHAN_INDIRECT,
     } nodetype;
     union
     {
@@ -164,19 +166,33 @@ void isRegister()
 {
     // if ((node->val.intval & REG_MASK) >= NREGISTERS)
     if ((node->datatype == NODE_INT) && ((node->val.intval) >= NREGISTERS))
-        {
-            char buffer[48];
-            snprintf(buffer, sizeof(buffer) - 1, "Register %x out of range (0-%d)", node->val.intval, NREGISTERS - 1);
-            yyerror(buffer);
-        }
+    {
+        char buffer[48];
+        snprintf(buffer, sizeof(buffer) - 1, "Register %x out of range (0-%d)", node->val.intval, NREGISTERS - 1);
+        yyerror(buffer);
+    }
     node->nodetype = NODE_REGISTER;
     // printf("  Is register: %s\n", nodeval(node));
 }
 
+/*
 void isIndirect()
 {
     node->nodetype = NODE_INDIRECT;
     // printf("  Is indirect: %s\n", nodeval(node));
+}
+*/
+
+void isRegIndirect()
+{
+    node->nodetype = NODE_REG_INDIRECT;
+    // printf("  Is Reg indirect: %s\n", nodeval(node));
+}
+
+void isChanIndirect()
+{
+    node->nodetype = NODE_CHAN_INDIRECT;
+    // printf("  Is Chan indirect: %s\n", nodeval(node));
 }
 
 void isChannel()
@@ -338,9 +354,14 @@ void constructInstruction()
                 gotlval = 1;
             }
             break;
-        case NODE_INDIRECT:
+        case NODE_REG_INDIRECT:
             field = 2;
             val |= REGIND_MASK;
+            lval = val;
+            opcode |= IND_MASK;
+            break;
+        case NODE_CHAN_INDIRECT:
+            field = 2;
             lval = val;
             opcode |= IND_MASK;
             break;
@@ -426,11 +447,11 @@ void resolveFwd()
     }
 }
 
-void dumpBinary()
+void dumpBinary(const char *filename)
 {
     int add = 0;
     int code;
-    FILE *fp = fopen("seq.bin", "r");
+    FILE *fp = fopen(filename, "r");
     while (fread(&code, INSTR_BYTES, 1, binfile) > 0)
     {
         printf("%04x ", add++);
@@ -447,13 +468,10 @@ int main(int argc, char *argv[])
     char *input = NULL;
     FILE *outfile = stdout;
 
-    while ((opt = getopt(argc, argv, "i:o:")) != -1)
+    while ((opt = getopt(argc, argv, "o:h")) != -1)
     {
         switch (opt)
         {
-        case 'i':
-            input = optarg;
-            break;
         case 'o':
             binary = optarg;
             break;
@@ -462,70 +480,80 @@ int main(int argc, char *argv[])
             break;
         }
     }
+
     if (optind < argc)
     {
         input = argv[optind];
     }
 
-    if (binary)
+    if (exitcode < 0)
     {
-        outfile = fopen(binary, "w");
-        if (!outfile)
-        {
-            perror("Could not open output");
-            exitcode = -2;
-        }
+        fprintf(stderr, "Usage: %s [-o BINARY] [SOURCE]\n", argv[0]);
     }
-
-    if (input)
+    else
     {
-        yyin = fopen(input, "r");
-        if (!yyin)
+
+        if (binary)
         {
-            perror("Could not open input");
-            exitcode = -2;
-        }
-    }
-
-    if (isatty(fileno(outfile)))
-    {
-        fprintf(stderr, "Cannot write binary to a terminal\n");
-        exitcode = -3;
-    }
-
-    if (exitcode == 0)
-    {
-        char *tmpfilename = strdup("/tmp/seq.bin.XXXXXX");
-        int tmpfd = mkstemp(tmpfilename);
-        binfile = fdopen(tmpfd, "w+");
-        if (binfile)
-        {
-            address = 0;
-            nextLine();
-            yyparse();
-            resolveFwd();
-            if (errors)
+            outfile = fopen(binary, "w");
+            if (!outfile)
             {
-                fprintf(stderr, "Errors: %d\n", errors);
+                perror("Could not open output");
+                exitcode = -2;
+            }
+        }
+
+        if (input)
+        {
+            yyin = fopen(input, "r");
+            if (!yyin)
+            {
+                perror("Could not open input");
+                exitcode = -2;
+            }
+        }
+
+        if (isatty(fileno(outfile)))
+        {
+            fprintf(stderr, "Cannot write binary to a terminal\n");
+            exitcode = -3;
+        }
+
+        if (exitcode == 0)
+        {
+            char *tmpfilename = strdup("/tmp/seq.bin.XXXXXX");
+            int tmpfd = mkstemp(tmpfilename);
+            binfile = fdopen(tmpfd, "w+");
+            if (binfile)
+            {
+                address = 0;
+                nextLine();
+                yyparse();
+                resolveFwd();
+                if (errors)
+                {
+                    fprintf(stderr, "Errors: %d\n", errors);
+                }
+                else
+                {
+                    fseek(binfile, 0, SEEK_SET);
+                    unsigned char c;
+                    while (fread(&c, 1, 1, binfile))
+                    {
+                        fwrite(&c, 1, 1, outfile);
+                    }
+                    fprintf(stderr, "Processed %d source -> %d binary\n", line - 1, address);
+                }
+                fclose(binfile);
+                dumpBinary(tmpfilename);
+                unlink(tmpfilename);
+                if (binary)
+                    fclose(outfile); // ie if it's not stdout
             }
             else
             {
-                fseek(binfile, 0, SEEK_SET);
-                unsigned char c;
-                while (fread(&c, 1, 1, binfile))
-                {
-                    fwrite(&c, 1, 1, outfile);
-                }
-                fprintf(stderr, "Processed %d source -> %d binary\n", line - 1, address);
+                perror("Could not open temporary file");
             }
-            fclose(binfile);
-            unlink(tmpfilename);
-            if (binary)
-                fclose(outfile); // ie if it's not stdout
-        }
-        else
-        {
-            perror("Could not open temporary file");
         }
     }
     return exitcode;

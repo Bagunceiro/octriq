@@ -24,6 +24,8 @@ void isRegister();
 void isOperandVal();
 void isComment();
 void isIndirect();
+void isRegIndirect();
+void isChanIndirect();
 
 void constructLabel();
 void constructAssignment();

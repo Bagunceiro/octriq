@@ -187,6 +187,13 @@ void kill(int argc, char *argv[])
   }
 }
 
+extern void vmclr();
+
+void clr(int argc, char *argv[])
+{
+  vmclr();
+}
+
 void run(int argc, char *argv[])
 {
   extern int runBinary(char *);
@@ -196,7 +203,11 @@ void run(int argc, char *argv[])
   }
   else
   {
-    int jobno = runBinary(argv[1]);
+    char buffer[strlen(argv[1]) +2];
+    buffer[0] = '\00';
+    if (argv[1][0] != '/') strcpy (buffer, "/");
+    strcat(buffer, argv[1]);
+    int jobno = runBinary(buffer);
     if (jobno >= 0)
     {
       client.printf("Job #%d\n", jobno);
@@ -235,7 +246,8 @@ std::vector<cmdDescriptor> cmdTable = {
     cmdEntry(help, , ),
     cmdEntry(run, , ),
     cmdEntry(list, , ),
-    cmdEntry(kill, , )
+    cmdEntry(kill, , ),
+    cmdEntry(clr, , )
     /*
     cmdEntry(ls, , ),
     cmdEntry(mkdir, make directory, mkdir DIR),

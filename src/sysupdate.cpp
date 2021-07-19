@@ -146,13 +146,13 @@ void wget(int argc, char *argv[])
             }
             fname[0] = '/';
         }
-        client.printf("getFile(%s,%s)\n", url.c_str(), fname);
+        // client.printf("getFile(%s,%s)\n", url.c_str(), fname);
         getFile(url.c_str(), fname);
     }
 }
 
 void initSysUpdate()
 {
-    addToCmdTable(sysupdate, "sysupdate", "sysupdate URL");
-    addToCmdTable(wget, "wget", "wget URL [TARGET]");
+    addToCmdTable(sysupdate, "sysupdate", "", "sysupdate URL");
+    addToCmdTable(wget, "wget", "" , "wget URL [TARGET]");
 }

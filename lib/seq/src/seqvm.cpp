@@ -211,9 +211,7 @@ void VM::doExec(void *ptr)
 {
     VM *vm = reinterpret_cast<VM *>(ptr);
     vm->exec();
-    Serial.printf("VM %d terminating\n", vm->vmnumber);
     Serial.flush();
-    Serial.printf("VM %d tidying\n", vm->vmnumber);
     tasklist.erase(vm->vmnumber);
     TaskHandle_t t = vm->xHandle;
     delete (vm);
@@ -355,8 +353,17 @@ void VM::exec()
                 if (in.opcode() & IND_MASK)
                 {
                     // lval is indirect (actual lval is held in %lval)
-                    lval &= REG_MASK;
-                    lval = reg[lval];
+                    // lval &= REG_MASK;
+
+                    if (lval & REGIND_MASK)
+                    {
+                        lval &= REG_MASK;
+                        lval = reg[lval] | REGIND_MASK;
+                    }
+                    else
+                    {
+                        lval = reg[lval];
+                    }
                 }
                 int rval = in.op2();
                 if (in.ind())
@@ -430,6 +437,14 @@ int VM::func_clr(int, int)
     return 0;
 }
 
+void vmclr()
+{
+    for (int i = 0; i < NCHANNELS; i++)
+    {
+        Channel::getChannel(i)->set(0);
+    }
+}
+
 int VM::func_add(int lval, int rval)
 {
     bool lvalreg = isreg(&lval);
@@ -472,9 +487,12 @@ int VM::func_sub(int lval, int rval)
     if (lvalreg)
     {
         int v = reg[lval] - rval;
-        int vmod = v % MOD_OP2;
-        if (v != vmod) carry = true;
-        reg[lval] = vmod;
+        if (v < 0)
+        {
+            v += MOD_OP2;
+            carry = true;
+        }
+        reg[lval] = v;
         if (trace)
             LOGF("(=%d)\n", reg[lval]);
         zero = (reg[lval] == 0);

@@ -52,7 +52,8 @@ operand: value
 lvalue:
 register
 | channel
-| '(' register ')'	{ isIndirect(); }
+| REGISTER '(' register ')'	{ isRegIndirect(); }
+| CHANNEL '(' register ')'	{ isChanIndirect(); }
 ;
 
 channel: CHANNEL value       { isChannel(); }
