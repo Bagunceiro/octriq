@@ -97,8 +97,13 @@ bool checkLittleEndian()
 void setup()
 {
   // const char *filename = "/seq.bin";
+  extern void vmclr();
   extern void initSysUpdate();
+
   Serial.begin(115200);
+
+  VM::buildOpMap(); // Also build the channels
+  vmclr();
 
   if (!checkLittleEndian())
   {
@@ -110,7 +115,7 @@ void setup()
   connectToWiFi();
   initSysUpdate();
   startCmdTask();
-  VM::buildOpMap();
+
   /*
   File f = LITTLEFS.open(filename);
   if (f)

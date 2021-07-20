@@ -73,7 +73,7 @@ public:
     void start(int address = 0);
     void startAsTask(int address, int stacksize = 4096);
     void settrace(bool t) { trace = t; }
-    int memrefs() { return txt.memrefs(); }
+ //   int memrefs() { return txt.memrefs(); }
     static int kill(int);
     int getNumber() { return vmnumber; }
     #ifdef ARDUINO
@@ -91,10 +91,10 @@ private:
     int stackSize;
     int *stack;
     uint8_t stackptr;
-    int progCounter;
+    unsigned int progCounter;
     int vmnumber;
-    void push(int val);
-    int pop();
+    void push(unsigned int val);
+    unsigned int pop();
     bool fetch(unsigned long *instr);
     void jumpto(int address);
 //   File binfile;

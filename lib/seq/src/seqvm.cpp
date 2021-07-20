@@ -69,11 +69,11 @@ class Instruction
 public:
     Instruction(const unsigned long ins);
     virtual ~Instruction();
-    int timecode() { return _timecode; }
-    int opcode() { return _opcode; }
-    int op1() { return _op1; }
-    int ind() { return _ind; }
-    int op2() { return _op2; }
+    unsigned int timecode() { return _timecode; }
+    unsigned int opcode() { return _opcode; }
+    unsigned int op1() { return _op1; }
+    unsigned int ind() { return _ind; }
+    unsigned int op2() { return _op2; }
     void dump();
 
 private:
@@ -228,9 +228,10 @@ void VM::createTask(const char *name, int stacksize)
 VM::VM(File f, int stk)
 {
     //    binfile = f;
+    stackSize = stk;
     stackptr = 0;
     zero = 0;
-    trace = true;
+    trace = false;
     stack = NULL;
     setStack(stackSize);
     progCounter = 0;
@@ -245,6 +246,7 @@ VM &VM::operator=(const VM &rhs)
     stackptr = 0;
     stackSize = rhs.stackSize;
     halt = false;
+    trace = rhs.trace;
     stack = NULL;
     setStack(stackSize);
     progCounter = 0;
@@ -269,7 +271,7 @@ VM::~VM()
 {
 }
 
-void VM::push(int val)
+void VM::push(unsigned int val)
 {
     if (stackptr < stackSize)
     {
@@ -278,12 +280,12 @@ void VM::push(int val)
     }
     else
     {
-        LOGF("Stack Overflow at %d", progCounter);
+        LOGF("Stack Overflow at %d\n", progCounter);
         abort = true;
     }
 }
 
-int VM::pop()
+unsigned int VM::pop()
 {
     int result;
     if (stackptr > 0)
@@ -293,7 +295,7 @@ int VM::pop()
     }
     else
     {
-        LOGF("Stack Underflow at %d", progCounter);
+        LOGF("Stack Underflow at %d\n", progCounter);
         result = 0;
         abort = true;
     }
@@ -324,7 +326,7 @@ void VM::exec()
     while (true)
     {
         unsigned long now = millis();
-        int tmpadd = progCounter;
+        unsigned int tmpadd = progCounter;
         unsigned long insbin;
         abort = false;
 
@@ -335,13 +337,13 @@ void VM::exec()
         {
             Instruction in(insbin);
             // in.dump();
-            unsigned int timecode = in.timecode();
+            unsigned long timecode = in.timecode();
             if (timecode)
             {
                 due = due + timecode;
-                unsigned int sleeptime = (due - now);
-
-                delay(sleeptime);
+                long sleeptime = (due - now);
+                if (sleeptime > 0) delay(sleeptime);
+                else (LOGF("timecode overrun (%lu - %lu %ld\n", due, now, sleeptime));
             }
             int (VM::*func)(int, int) = opmap[in.opcode() & OPC_MASK];
 
@@ -503,9 +505,12 @@ int VM::func_sub(int lval, int rval)
         if (ch)
         {
             int v = ch->get() - rval;
-            int vmod = v % MOD_OP2;
-            if (v != vmod) carry = true;
-            ch->set(vmod);
+            if (v < 0)
+            {
+                v += MOD_OP2;
+                carry = true;
+            }
+            ch->set(v);
             if (trace)
                 LOGF("(=%d)\n", ch->get());
             zero = (ch->get() == 0);
@@ -655,7 +660,7 @@ int VM::func_run(int, int rval)
     if (trace)
         LOGF("RUN at %d\n", rval);
     VM *vm = new VM(*this);
-    vm->settrace(true);
+    // vm->settrace(true);
     vm->startAsTask(rval);
     return 0;
 }
@@ -745,7 +750,7 @@ int runBinary(char *filename)
     if (f)
     {
         VM *vm = new VM(f);
-        vm->settrace(true);
+        // vm->settrace(true);
         vm->startAsTask(0);
         result = vm->getNumber();
     }

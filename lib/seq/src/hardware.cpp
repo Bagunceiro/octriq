@@ -8,6 +8,18 @@ Channel dummyCh(0, 0, Channel::PT_NONE);
 
 #ifdef ARDUINO
 
+static const double factor = pow(255.0, (1.0 / 1023.0));
+
+int Channel::powtable[1024];
+
+void Channel::mkpowtable()
+{
+    for (int v = 0; v < 1024; v++)
+    {
+        powtable[v] = round(pow(factor, v));
+    }
+}
+
 Channel::Channel(uint8_t n, uint8_t p, pin_type t)
 {
     channelnum = n;
@@ -20,7 +32,7 @@ Channel::Channel(uint8_t n, uint8_t p, pin_type t)
         break;
     case PT_ANALOG:
         ledch = n;
-        ledcSetup(ledch, 5000, 10);
+        ledcSetup(ledch, 5000, 8);
         ledcAttachPin(pin, ledch);
         break;
     case PT_NONE:
@@ -37,8 +49,15 @@ void Channel::set(uint32_t v)
         digitalWrite(pin, value);
         break;
     case PT_ANALOG:
-        ledcWrite(ledch, v);
-        break;
+    {
+        int vexp = 0;
+        if ((v > 0) && (v < 1024))
+        {
+            vexp = powtable[v];
+            ledcWrite(ledch, vexp);
+        }
+    }
+    break;
     case PT_NONE:
         break;
     }
@@ -73,7 +92,8 @@ void Channel::buildList()
 {
     for (int i = 0; pinlist[i]; i++)
     {
-        Channel* ch = new Channel(i, pinlist[i], PT_ANALOG);
+        Channel *ch = new Channel(i, pinlist[i], PT_ANALOG);
         channels[i] = ch;
     }
+    mkpowtable();
 }

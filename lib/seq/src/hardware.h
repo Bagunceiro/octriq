@@ -34,6 +34,8 @@ public:
 
     static void buildList();
     static Channel *getChannel(uint8_t);
+    static int powtable[];
+    static void mkpowtable();
 
 private:
     uint8_t channelnum;
