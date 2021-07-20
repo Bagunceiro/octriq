@@ -165,7 +165,7 @@ int killvm(int jobno)
 }
 
 #ifdef ARDUINO
-int VM::listTasks(Print& out)
+int VM::listTasks(Print &out)
 {
     for (auto const &x : tasklist)
     {
@@ -174,7 +174,7 @@ int VM::listTasks(Print& out)
     return 0;
 }
 
-int listvms(Print& out)
+int listvms(Print &out)
 {
     return VM::listTasks(out);
 }
@@ -185,7 +185,7 @@ int VM::numVMs = 0;
 
 void VM::startAsTask(int address, int stacksize)
 {
-    LOGF("startAsTask(%d, %d)\n", address, stacksize);
+    // LOGF("startAsTask(%d, %d)\n", address, stacksize);
     progCounter = address;
 #ifdef ARDUINO
     char buff[8];
@@ -199,6 +199,9 @@ void VM::startAsTask(int address, int stacksize)
         this,
         tskIDLE_PRIORITY,
         &xHandle);
+#ifdef TUNE_STACK_SIZE
+    minhwm = uxTaskGetStackHighWaterMark(xHandle);
+#endif
 #else
     // Create a thread here
     exec();
@@ -210,6 +213,7 @@ void VM::startAsTask(int address, int stacksize)
 void VM::doExec(void *ptr)
 {
     VM *vm = reinterpret_cast<VM *>(ptr);
+
     vm->exec();
     Serial.flush();
     tasklist.erase(vm->vmnumber);
@@ -237,6 +241,7 @@ VM::VM(File f, int stk)
     progCounter = 0;
     txt.load(f);
     vmnumber = 0;
+    xHandle = NULL;
     halt = false;
 }
 
@@ -250,6 +255,8 @@ VM &VM::operator=(const VM &rhs)
     stack = NULL;
     setStack(stackSize);
     progCounter = 0;
+    vmnumber = 0;
+    xHandle = NULL;
     zero = 0;
     return *this;
 }
@@ -281,7 +288,7 @@ void VM::push(unsigned int val)
     else
     {
         LOGF("Stack Overflow at %d\n", progCounter);
-        abort = true;
+        halt = true;
     }
 }
 
@@ -297,7 +304,7 @@ unsigned int VM::pop()
     {
         LOGF("Stack Underflow at %d\n", progCounter);
         result = 0;
-        abort = true;
+        halt = true;
     }
     return result;
 }
@@ -323,12 +330,23 @@ void VM::exec()
     unsigned long started = millis();
     unsigned long due = started;
     jumpto(progCounter);
+
     while (true)
     {
+#ifdef TUNE_STACK_SIZE
+        if (xHandle)
+        {
+            int hwm = uxTaskGetStackHighWaterMark(xHandle);
+            if (hwm < minhwm)
+            {
+                LOGF("VM%d: HWM = %d\n", vmnumber, hwm);
+                minhwm = hwm;
+            }
+        }
+#endif
         unsigned long now = millis();
         unsigned int tmpadd = progCounter;
         unsigned long insbin;
-        abort = false;
 
         if (halt)
             break;
@@ -336,14 +354,15 @@ void VM::exec()
         if (fetch(&insbin))
         {
             Instruction in(insbin);
-            // in.dump();
             unsigned long timecode = in.timecode();
             if (timecode)
             {
                 due = due + timecode;
                 long sleeptime = (due - now);
-                if (sleeptime > 0) delay(sleeptime);
-                else (LOGF("timecode overrun (%lu - %lu %ld\n", due, now, sleeptime));
+                if (sleeptime > 0)
+                    delay(sleeptime);
+                else
+                    (LOGF("timecode overrun (%lu - %lu %ld\n", due, now, sleeptime));
             }
             int (VM::*func)(int, int) = opmap[in.opcode() & OPC_MASK];
 
@@ -384,10 +403,8 @@ void VM::exec()
             else
             {
                 LOGF("Unknown opcode %x at %d\n", in.opcode(), progCounter);
-                abort = true;
+                halt = true;
             }
-            if (abort)
-                break;
         }
         else
             break; // fallen off the end;
@@ -458,7 +475,8 @@ int VM::func_add(int lval, int rval)
     {
         int v = reg[lval] + rval;
         int vmod = v % MOD_OP2;
-        if (v != vmod) carry = true;
+        if (v != vmod)
+            carry = true;
         reg[lval] = vmod;
         if (trace)
             LOGF("(=%d)\n", reg[lval]);
@@ -469,7 +487,8 @@ int VM::func_add(int lval, int rval)
         Channel *ch = Channel::getChannel(lval);
         int v = ch->get() + rval;
         int vmod = v % MOD_OP2;
-        if (v != vmod) carry = true;
+        if (v != vmod)
+            carry = true;
         ch->set(vmod);
         if (trace)
             LOGF("(=%d)\n", ch->get());

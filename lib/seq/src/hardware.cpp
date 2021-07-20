@@ -16,6 +16,7 @@ void Channel::mkpowtable()
 {
     for (int v = 0; v < 1024; v++)
     {
+        // This is too expensive in processing time to do it on the fly every time
         powtable[v] = round(pow(factor, v));
     }
 }

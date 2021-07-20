@@ -24,7 +24,7 @@
 #define File FILE *
 #define OPENFILE(fname, mode) fopen(fname, mode)
 #define CLOSEFILE(file) fclose(file)
-#define READFILE(file, buffer, size) fread((void*)buffer, size, 1, file)
+#define READFILE(file, buffer, size) fread((void *)buffer, size, 1, file)
 #define SEEKFILE(file, pos, mode) fseek(file, pos, mode)
 #define POSINFILE(file) ftell(file)
 #define SEEKMODE_SET SEEK_SET
@@ -34,22 +34,23 @@
 
 struct Memory
 {
-    uint32_t* int32s;
+    uint32_t *int32s;
 };
 
 class Text
 {
-    public:
+public:
     Text();
-    Text(const Text& rhs);
-    Text& operator=(const Text& rhs);
+    Text(const Text &rhs);
+    Text &operator=(const Text &rhs);
     virtual ~Text();
     // uint32_t getInt(int index);
     unsigned int load(File f);
     size_t getSize() { return size; }
     uint32_t operator[](int i) { return (memory.get)()[i]; }
     int memrefs() { return memory.use_count(); }
-    private:
+
+private:
     size_t size;
     // uint32_t* memory;
     std::shared_ptr<uint32_t> memory;
@@ -59,8 +60,8 @@ class VM
 {
 public:
     VM(File f, int stk = 16);
-    VM(const VM& rhs);
-    VM& operator=(const VM& rhs);
+    VM(const VM &rhs);
+    VM &operator=(const VM &rhs);
     virtual ~VM();
     void exec();
     static void buildOpMap();
@@ -71,19 +72,22 @@ public:
     }
     void setStack(int size);
     void start(int address = 0);
-    void startAsTask(int address, int stacksize = 4096);
+    void startAsTask(int address, int stacksize = 3072);
     void settrace(bool t) { trace = t; }
- //   int memrefs() { return txt.memrefs(); }
+    //   int memrefs() { return txt.memrefs(); }
     static int kill(int);
     int getNumber() { return vmnumber; }
-    #ifdef ARDUINO
-    static int listTasks(Print& out);
-    #endif
+#ifdef ARDUINO
+    static int listTasks(Print &out);
+#endif
 private:
 #ifdef ARDUINO
-    void createTask(const char* n, int stack);
+    void createTask(const char *n, int stack);
     TaskHandle_t xHandle;
-    static void doExec(void*);
+    static void doExec(void *);
+#ifdef TUNE_STACK_SIZE
+    int minhwm;
+#endif TUNE_STACK_SIZE
 #endif
 
     Text txt;
@@ -97,7 +101,7 @@ private:
     unsigned int pop();
     bool fetch(unsigned long *instr);
     void jumpto(int address);
-//   File binfile;
+    //   File binfile;
     int func_nop(int, int);
     int func_set(int, int);
     int func_clr(int, int);
@@ -119,7 +123,7 @@ private:
     bool carry;
     bool trace;
     static int numVMs;
-    bool abort;
-    static std::map<int, VM*> tasklist;
+    // bool abort;
+    static std::map<int, VM *> tasklist;
     bool halt;
 };

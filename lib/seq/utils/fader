@@ -9,7 +9,7 @@
 start:
 	set %1, 7;
 loop:
-	sub #(%1), 8;
+	sub #(%1), 32;
 	sub %1, 1;
 	jnc loop;
-15	jmp start;
+12	jmp start;
