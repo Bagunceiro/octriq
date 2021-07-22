@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFiServer.h>
 #include <vector>
+#include <LITTLEFS.h>
 
 #include "cmd.h"
 
@@ -141,7 +142,7 @@ int parse(const char *line, std::vector<String> &argv)
 
 const char *prompt = "> ";
 
-extern int listvms(Print& out);
+extern int listvms(Print &out);
 
 void list(int argc, char *argv[])
 {
@@ -189,6 +190,15 @@ void kill(int argc, char *argv[])
 
 extern void vmclr();
 
+char* absfilename(char* n)
+{
+    char* fname = new char[strlen(n)+2];
+    fname[0] = '\00';
+    if (n[0] != '/') strcpy(fname, "/");
+    strcat(fname, n);
+    return fname;
+}
+
 void clr(int argc, char *argv[])
 {
   vmclr();
@@ -203,11 +213,10 @@ void run(int argc, char *argv[])
   }
   else
   {
-    char buffer[strlen(argv[1]) +2];
-    buffer[0] = '\00';
-    if (argv[1][0] != '/') strcpy (buffer, "/");
-    strcat(buffer, argv[1]);
-    int jobno = runBinary(buffer);
+    char* fname = absfilename(argv[1]);
+
+    int jobno = runBinary(fname);
+    delete fname;
     if (jobno >= 0)
     {
       client.printf("Job #%d\n", jobno);
@@ -217,6 +226,47 @@ void run(int argc, char *argv[])
       client.printf("Failed\n");
     }
   }
+}
+
+void treeRec(File dir)
+{
+  if (dir)
+  {
+    dir.size();
+    if (dir.isDirectory())
+    {
+      client.printf("%s :\n", dir.name());
+      while (File f = dir.openNextFile())
+      {
+        treeRec(f);
+        f.close();
+      }
+    }
+    else
+      client.printf(" %6.d %s\n", dir.size(), dir.name());
+
+    dir.close();
+  }
+}
+
+void rm(int argc, char *argv[])
+{
+  for (int i = 1; i < argc; i++)
+  {
+    char* fname = absfilename(argv[i]);
+    if (!((LITTLEFS.remove(fname) || LITTLEFS.rmdir(fname))))
+    {
+      client.printf("Could not remove %s\n", argv[i]);
+    }
+    delete fname;
+  }
+}
+
+void tree(int argc, char *argv[])
+{
+  File dir = LITTLEFS.open("/");
+  treeRec(dir);
+  dir.close();
 }
 
 void exit(int argc, char *argv[])
@@ -233,35 +283,14 @@ void help(int argc, char *argv[]);
 
 std::vector<cmdDescriptor> cmdTable = {
     // You can also add entries using "addToCmdTable(...)"
-    /*
-    cmdEntry(ar, analogRead, ar PIN),
-    cmdEntry(archive, set or read the archive server name, archive[SERVER]),
-    cmdEntry(cat, concatenate files and print on the standard output, cat[FILE]...),
-    cmdEntry(cd, change working directory, ),
-    cmdEntry(cp, copy file, cp FILE... TARGET),
-    cmdEntry(dr, digitalRead, dr PIN),
-    cmdEntry(dw, digitalWrite, dr PIN VALUE),
-    */
     cmdEntry(exit, , ),
     cmdEntry(help, , ),
     cmdEntry(run, , ),
     cmdEntry(list, , ),
     cmdEntry(kill, , ),
-    cmdEntry(clr, , )
-    /*
-    cmdEntry(ls, , ),
-    cmdEntry(mkdir, make directory, mkdir DIR),
-    cmdEntry(mv, rename file, mv FILE TARGET),
-    cmdEntry(pm, pinMode, pm PIN MODE),
-    cmdEntry(push, send file to the archive server, push FILE[TARGET]),
-    cmdEntry(reboot, , ),
+    cmdEntry(clr, , ),
     cmdEntry(rm, , ),
-    cmdEntry(rmdir, , ),
-    cmdEntry(pwd, , ),
-    cmdEntry(sysupdate, Update from image on Web server, sysupdate URL),
-    cmdEntry(touch, , ),
-    cmdEntry(wget, Web get file, wget URL[TARGET]),
-    */
+    cmdEntry(tree, , )
 };
 
 void help(int argc, char *argv[])

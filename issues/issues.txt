@@ -1,7 +1,8 @@
 forward reference to registers (interpreted as a channel)
 assembler hardening for range checks in labels
 Should rval have indirection brackets for regs and chans?
-timecode overrun (results in frieze) (fixed, not tested)
 startup connection failure
 trace command
 set command
+list should show filename of running task
+Add async web server

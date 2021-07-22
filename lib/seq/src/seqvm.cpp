@@ -169,7 +169,7 @@ int VM::listTasks(Print &out)
 {
     for (auto const &x : tasklist)
     {
-        out.printf("%d\n", x.first);
+        out.printf("%d, %s\n", x.first, x.second->name);
     }
     return 0;
 }
@@ -243,6 +243,7 @@ VM::VM(File f, int stk)
     vmnumber = 0;
     xHandle = NULL;
     halt = false;
+    name = strdup("");
 }
 
 VM &VM::operator=(const VM &rhs)
@@ -258,6 +259,7 @@ VM &VM::operator=(const VM &rhs)
     vmnumber = 0;
     xHandle = NULL;
     zero = 0;
+    name = strdup("");
     return *this;
 }
 
@@ -276,6 +278,8 @@ void VM::setStack(int size)
 
 VM::~VM()
 {
+    if (stack) free(stack);
+    free(name);
 }
 
 void VM::push(unsigned int val)
@@ -329,6 +333,11 @@ void VM::exec()
 {
     unsigned long started = millis();
     unsigned long due = started;
+    unsigned long totalsleep = 0;
+#ifdef STACK_TUNE
+    unsigned long lastReportedDutyCycle = started;
+#endif
+
     jumpto(progCounter);
 
     while (true)
@@ -359,8 +368,20 @@ void VM::exec()
             {
                 due = due + timecode;
                 long sleeptime = (due - now);
+
                 if (sleeptime > 0)
+                {
+                    totalsleep += sleeptime;
                     delay(sleeptime);
+#ifdef STACK_TUNE
+                    if ((now - lastReportedDutyCycle) > 10000)
+                    {
+                        lastReportedDutyCycle = now;
+                        int totaltime = millis() - started;
+                        LOGF("Duty cycle (%ld/%ld) = %ld\n", totaltime - totalsleep, totaltime, (100 * (totaltime - totalsleep)) / totaltime);
+                    }
+#endif
+                }
                 else
                     (LOGF("timecode overrun (%lu - %lu %ld\n", due, now, sleeptime));
             }
@@ -590,34 +611,34 @@ int VM::func_jz(int, int rval)
     return 0;
 }
 
-int VM::func_jnc(int, int rval)
+int VM::func_jnv(int, int rval)
 {
     if (!carry)
     {
         jumpto(rval);
         if (trace)
-            LOGF("JNC to %d\n", rval);
+            LOGF("JNV to %d\n", rval);
     }
     else
     {
         if (trace)
-            LOGF("JNC ----\n");
+            LOGF("JNV ----\n");
     }
     return 0;
 }
 
-int VM::func_jc(int, int rval)
+int VM::func_jv(int, int rval)
 {
     if (carry)
     {
         jumpto(rval);
         if (trace)
-            LOGF("JC to %d\n", rval);
+            LOGF("JV to %d\n", rval);
     }
     else
     {
         if (trace)
-            LOGF("JC ----\n");
+            LOGF("JV ----\n");
     }
     return 0;
 }
@@ -726,13 +747,13 @@ void VM::buildOpMap()
         {
             opmap[opcode] = &VM::func_jz;
         }
-        else if (strcmp(mnemonic, "jnc") == 0)
+        else if (strcmp(mnemonic, "jnv") == 0)
         {
-            opmap[opcode] = &VM::func_jnc;
+            opmap[opcode] = &VM::func_jnv;
         }
-        else if (strcmp(mnemonic, "jc") == 0)
+        else if (strcmp(mnemonic, "jv") == 0)
         {
-            opmap[opcode] = &VM::func_jc;
+            opmap[opcode] = &VM::func_jv;
         }
         else if (strcmp(mnemonic, "ret") == 0)
         {
@@ -769,6 +790,7 @@ int runBinary(char *filename)
     if (f)
     {
         VM *vm = new VM(f);
+        vm->setName(filename);
         // vm->settrace(true);
         vm->startAsTask(0);
         result = vm->getNumber();

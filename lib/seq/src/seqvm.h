@@ -63,6 +63,7 @@ public:
     VM(const VM &rhs);
     VM &operator=(const VM &rhs);
     virtual ~VM();
+    void setName(const char* n) { if (name) free(name); name = strdup(n); }
     void exec();
     static void buildOpMap();
     void dumpRegisters()
@@ -87,7 +88,7 @@ private:
     static void doExec(void *);
 #ifdef TUNE_STACK_SIZE
     int minhwm;
-#endif TUNE_STACK_SIZE
+#endif
 #endif
 
     Text txt;
@@ -111,8 +112,8 @@ private:
     int func_jsr(int, int);
     int func_jnz(int, int);
     int func_jz(int, int);
-    int func_jnc(int, int);
-    int func_jc(int, int);
+    int func_jnv(int, int);
+    int func_jv(int, int);
     int func_ret(int, int);
     int func_hlt(int, int);
     int func_psh(int, int);
@@ -126,4 +127,5 @@ private:
     // bool abort;
     static std::map<int, VM *> tasklist;
     bool halt;
+    char* name;
 };

@@ -17,7 +17,9 @@ void Channel::mkpowtable()
     for (int v = 0; v < 1024; v++)
     {
         // This is too expensive in processing time to do it on the fly every time
+        if (v)
         powtable[v] = round(pow(factor, v));
+        else powtable[v] = 0;
     }
 }
 
@@ -52,7 +54,7 @@ void Channel::set(uint32_t v)
     case PT_ANALOG:
     {
         int vexp = 0;
-        if ((v > 0) && (v < 1024))
+        if ((v >= 0) && (v < 1024))
         {
             vexp = powtable[v];
             ledcWrite(ledch, vexp);
