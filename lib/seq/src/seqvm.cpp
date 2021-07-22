@@ -69,7 +69,7 @@ class Instruction
 public:
     Instruction(const unsigned long ins);
     virtual ~Instruction();
-    unsigned int timecode() { return _timecode; }
+    // unsigned int timecode() { return _timecode; }
     unsigned int opcode() { return _opcode; }
     unsigned int op1() { return _op1; }
     unsigned int ind() { return _ind; }
@@ -79,7 +79,7 @@ public:
 private:
     void deconstruct(const unsigned long ins);
     unsigned int getField(unsigned long code, int width, int pos, int bits);
-    unsigned int _timecode;
+    // unsigned int _timecode;
     unsigned int _opcode;
     unsigned int _op1;
     unsigned int _ind;
@@ -88,7 +88,7 @@ private:
 
 void Instruction::dump()
 {
-    LOGF("%04x %02x %02x %01x %02x\n", _timecode, _opcode, _op1, _ind, _op2);
+    LOGF("  %02x %02x %01x %02x\n", _opcode, _op1, _ind, _op2);
 }
 
 Instruction::Instruction(const unsigned long ins)
@@ -120,7 +120,7 @@ unsigned int Instruction::getField(unsigned long code, int width, int pos, int b
 
 void Instruction::deconstruct(const unsigned long code)
 {
-    _timecode = getField(code, INSTR_BITS, OFFSET_TC, WIDTH_TC);
+//    _timecode = getField(code, INSTR_BITS, OFFSET_TC, WIDTH_TC);
     _opcode = getField(code, INSTR_BITS, OFFSET_OPC, WIDTH_OPC);
     _op1 = getField(code, INSTR_BITS, OFFSET_OP1, WIDTH_OP1);
     _ind = getField(code, INSTR_BITS, OFFSET_IND, WIDTH_IND);
@@ -241,7 +241,9 @@ VM::VM(File f, int stk)
     progCounter = 0;
     txt.load(f);
     vmnumber = 0;
+    #ifdef ARDUINO
     xHandle = NULL;
+    #endif
     halt = false;
     name = strdup("");
 }
@@ -257,7 +259,9 @@ VM &VM::operator=(const VM &rhs)
     setStack(stackSize);
     progCounter = 0;
     vmnumber = 0;
+    #ifdef ARDUINO
     xHandle = NULL;
+    #endif
     zero = 0;
     name = strdup("");
     return *this;
@@ -278,7 +282,8 @@ void VM::setStack(int size)
 
 VM::~VM()
 {
-    if (stack) free(stack);
+    if (stack)
+        free(stack);
     free(name);
 }
 
@@ -331,9 +336,9 @@ void VM::jumpto(int address)
 
 void VM::exec()
 {
-    unsigned long started = millis();
-    unsigned long due = started;
-    unsigned long totalsleep = 0;
+    started = millis();
+    due = started;
+    totalsleep = 0;
 #ifdef STACK_TUNE
     unsigned long lastReportedDutyCycle = started;
 #endif
@@ -353,7 +358,7 @@ void VM::exec()
             }
         }
 #endif
-        unsigned long now = millis();
+        // unsigned long now = millis();
         unsigned int tmpadd = progCounter;
         unsigned long insbin;
 
@@ -363,28 +368,8 @@ void VM::exec()
         if (fetch(&insbin))
         {
             Instruction in(insbin);
-            unsigned long timecode = in.timecode();
-            if (timecode)
-            {
-                due = due + timecode;
-                long sleeptime = (due - now);
+            // unsigned long timecode = in.timecode();
 
-                if (sleeptime > 0)
-                {
-                    totalsleep += sleeptime;
-                    delay(sleeptime);
-#ifdef STACK_TUNE
-                    if ((now - lastReportedDutyCycle) > 10000)
-                    {
-                        lastReportedDutyCycle = now;
-                        int totaltime = millis() - started;
-                        LOGF("Duty cycle (%ld/%ld) = %ld\n", totaltime - totalsleep, totaltime, (100 * (totaltime - totalsleep)) / totaltime);
-                    }
-#endif
-                }
-                else
-                    (LOGF("timecode overrun (%lu - %lu %ld\n", due, now, sleeptime));
-            }
             int (VM::*func)(int, int) = opmap[in.opcode() & OPC_MASK];
 
             if (trace)
@@ -705,6 +690,24 @@ int VM::func_run(int, int rval)
     return 0;
 }
 
+int VM::func_dly(int, int rval)
+{
+    unsigned long now = millis();
+    due = due + rval;
+    long sleeptime = (due - now);
+
+    if (sleeptime > 0)
+    {
+        totalsleep += sleeptime;
+        delay(sleeptime);
+    }
+    else
+        (LOGF("time overrun (%lu - %lu %ld\n", due, now, sleeptime));
+    if (trace)
+        LOGF("DLY %d\n", rval);
+    return 0;
+}
+
 void VM::buildOpMap()
 {
     const char *mnemonic;
@@ -775,6 +778,10 @@ void VM::buildOpMap()
         {
             opmap[opcode] = &VM::func_run;
         }
+        else if (strcmp(mnemonic, "dly") == 0)
+        {
+            opmap[opcode] = &VM::func_dly;
+        }
         else
             LOGF("BuildOpMap: Unknown mnemonic: %s\n", mnemonic);
     }
@@ -834,12 +841,6 @@ int main(int argc, char *argv[])
         if (fp)
         {
             VM vm(fp);
-            printf("vm memory refs is %d\n", vm.memrefs());
-            {
-                VM vm2 = vm;
-                printf("vm2 memory refs is %d\n", vm2.memrefs());
-            }
-            printf("vm memory refs is now %d\n", vm.memrefs());
             vm.settrace(trace);
             vm.start();
             CLOSEFILE(fp);

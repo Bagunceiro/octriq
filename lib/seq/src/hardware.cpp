@@ -1,3 +1,4 @@
+#include <math.h>
 #include "hardware.h"
 
 std::map<int, Channel *> Channel::channels;
@@ -5,8 +6,6 @@ std::map<int, Channel *> Channel::channels;
 int pinlist[] = {13, 12, 14, 27, 26, 25, 33, 32, 0};
 
 Channel dummyCh(0, 0, Channel::PT_NONE);
-
-#ifdef ARDUINO
 
 static const double factor = pow(255.0, (1.0 / 1023.0));
 
@@ -22,6 +21,8 @@ void Channel::mkpowtable()
         else powtable[v] = 0;
     }
 }
+
+#ifdef ARDUINO
 
 Channel::Channel(uint8_t n, uint8_t p, pin_type t)
 {

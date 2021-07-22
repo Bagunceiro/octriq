@@ -35,7 +35,6 @@ struct Node_struct
         NODE_CHANNEL,
         NODE_REGISTER,
         //        NODE_INDIRECT,
-        NODE_TIMECODE,
         NODE_REG_INDIRECT,
         NODE_CHAN_INDIRECT,
     } nodetype;
@@ -207,18 +206,6 @@ void isChannel()
     // printf("  Is channel: %s\n", nodeval(node));
 }
 
-void isTimecode()
-{
-    if ((node->datatype == NODE_INT) && (node->val.intval >= MOD_TC))
-    {
-        char buffer[48];
-        snprintf(buffer, sizeof(buffer) - 1, "Timecode out of range (0-%d)", MOD_TC - 1);
-        yyerror(buffer);
-    }
-    node->nodetype = NODE_TIMECODE;
-    // printf("  Is timecode: %s\n", nodeval(node));
-}
-
 void isComment()
 {
     printf("A comment: %s\n", yylval.strVal);
@@ -298,7 +285,6 @@ void setField(unsigned int *code, int width, int val, int pos, int bits)
 void constructInstruction()
 {
     // printf("INSTRUCTION %d:", address);
-    int timecode = 0;
     int opcode = 0;
     int opcount = 0;
     int lval = 0;
@@ -330,10 +316,6 @@ void constructInstruction()
         }
         switch (parsedLine[count]->nodetype)
         {
-        case NODE_TIMECODE:
-            field = 0;
-            timecode = val;
-            break;
         case NODE_OPCODE:
             field = 1;
             opcode = val;
@@ -384,9 +366,8 @@ void constructInstruction()
         }
     }
 
-    // printf ("CODE: %02x %02x %02x %1x %04x\n", timecode, opcode, lval, rvaltype, rval);
-    unsigned int code;
-    setField(&code, INSTR_BITS, timecode, OFFSET_TC, WIDTH_TC);
+    // printf ("CODE: %02x %02x %1x %04x\n", opcode, lval, rvaltype, rval);
+    unsigned int code = 0;
     setField(&code, INSTR_BITS, opcode, OFFSET_OPC, WIDTH_OPC);
     setField(&code, INSTR_BITS, lval, OFFSET_OP1, WIDTH_OP1);
     setField(&code, INSTR_BITS, rvaltype, OFFSET_IND, WIDTH_IND);

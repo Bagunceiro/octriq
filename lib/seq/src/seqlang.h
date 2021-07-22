@@ -22,6 +22,7 @@ const struct OpcodeDef_struct
 { "psh", 13, 1 },
 { "pop", 14, 1 },
 { "run", 15, 3 },
+{ "dly", 16, 3 },
 { (const char*)0,  0 }};
 
 #define BYTE_BITS (8)

@@ -1,5 +1,4 @@
 enum fieldcode {
-    F_TIMECODE,
     F_OPCODE,
     F_OP1,
     F_OP2,
@@ -13,12 +12,11 @@ int yyerror(const char *);
 void addLabel(char* l);
 void addSymbol(char* l, int v);
 int getLabelValue(char* l, enum fieldcode f);
-int addOp(int timecode, int opcode, int operand1, int operand2);
+int addOp(int opcode, int operand1, int operand2);
 
 void makeIntNode(int value);
 void makeIdNode(char* value);
 void isOpcode();
-void isTimecode();
 void isChannel();
 void isRegister();
 void isOperandVal();

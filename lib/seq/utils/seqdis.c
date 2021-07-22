@@ -89,15 +89,12 @@ int main(int argc, char *argv[])
 
                 int ind = getField(instr, INSTR_BITS, OFFSET_IND, WIDTH_IND);
 
-                char* pfx1 = "";
-                // if (indirect)
-                // {
-                    pfx1 = "#";
-                    if (op1 >= NCHANNELS)
-                    {
-                        pfx1 = "%";
-                    }
-                // }
+                char *pfx1 = "";
+                pfx1 = "#";
+                if (op1 >= NCHANNELS)
+                {
+                    pfx1 = "%";
+                }
                 op1 &= REG_MASK;
 
                 int op2raw = getField(instr, INSTR_BITS, OFFSET_OP2, WIDTH_OP2);

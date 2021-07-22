@@ -119,6 +119,7 @@ private:
     int func_psh(int, int);
     int func_pop(int, int);
     int func_run(int, int);
+    int func_dly(int, int);
     static std::map<int, int (VM::*)(int, int)> opmap;
     bool zero;
     bool carry;
@@ -128,4 +129,7 @@ private:
     static std::map<int, VM *> tasklist;
     bool halt;
     char* name;
+    unsigned long started;
+    unsigned long due;
+    unsigned long totalsleep;
 };

@@ -27,7 +27,6 @@ prog:                     { /* printf("prog: (empty)\n"); */ }
 line: identifier ':'      { constructLabel(); }
  | identifier '=' integer { constructAssignment(); }
  | instruction            { constructInstruction(); }
- | timecode instruction   { constructInstruction(); }
  | error EOL              { nextLine(); }
  | line EOL               { nextLine(); }
 ;
@@ -35,9 +34,6 @@ line: identifier ':'      { constructLabel(); }
 instruction:
 opcode ';'                { }
  | opcode operands  ';'   { }
-;
-
-timecode: integer         { isTimecode(); }
 ;
 
 operands:
