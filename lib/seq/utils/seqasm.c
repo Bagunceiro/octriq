@@ -254,10 +254,9 @@ void outBin(unsigned int val, int bits)
         bit++;
         switch (bit)
         {
-        case WIDTH_TC:                                     // 10:
-        case WIDTH_TC + WIDTH_OPC:                         // 16:
-        case WIDTH_TC + WIDTH_OPC + WIDTH_OP1:             // 21:
-        case WIDTH_TC + WIDTH_OPC + WIDTH_OP1 + WIDTH_IND: // 22:
+        case WIDTH_OPC:                         // 6:
+        case WIDTH_OPC + WIDTH_OP1:             // 11:
+        case WIDTH_OPC + WIDTH_OP1 + WIDTH_IND: // 12:
             putchar('-');
         }
     }
@@ -402,7 +401,7 @@ void resolveFwd()
         switch (fwd[i].field)
         {
         case 0:
-            pos = OFFSET_TC, bits = WIDTH_TC;
+            // pos = OFFSET_TC, bits = WIDTH_TC;
             break;
         case 1:
             pos = OFFSET_OPC, bits = WIDTH_OPC;

@@ -1,6 +1,16 @@
-	set %4, 5;
-	set #4, 5;
-        set %(%4), 37;
-        set #(%4), 38;
-        set %4, %1;
-	set #4, %1;
+	set #0, 0;
+	set #1, 128;
+	set #2, 256;
+	set #3, 384;
+	set #4, 512;
+	set #5, 640;
+	set #6, 768;
+	set #7, 896;
+start:
+	set %1, 7;
+loop:
+	sub #(%1), 32;
+	sub %1, 1;
+	jnv loop;
+	dly 10;
+	jmp start;

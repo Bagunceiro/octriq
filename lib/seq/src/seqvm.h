@@ -74,8 +74,8 @@ public:
     void setStack(int size);
     void start(int address = 0);
     void startAsTask(int address, int stacksize = 3072);
-    void settrace(bool t) { trace = t; }
-    //   int memrefs() { return txt.memrefs(); }
+    void setTrace(bool t) { trace = t; }
+    static int setTrace(int vmnum, bool);
     static int kill(int);
     int getNumber() { return vmnumber; }
 #ifdef ARDUINO
@@ -102,7 +102,6 @@ private:
     unsigned int pop();
     bool fetch(unsigned long *instr);
     void jumpto(int address);
-    //   File binfile;
     int func_nop(int, int);
     int func_set(int, int);
     int func_clr(int, int);
@@ -122,10 +121,11 @@ private:
     int func_dly(int, int);
     static std::map<int, int (VM::*)(int, int)> opmap;
     bool zero;
-    bool carry;
+    bool overflow;
     bool trace;
     static int numVMs;
     // bool abort;
+
     static std::map<int, VM *> tasklist;
     bool halt;
     char* name;

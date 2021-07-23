@@ -174,6 +174,22 @@ int VM::listTasks(Print &out)
     return 0;
 }
 
+int VM::setTrace(int vmnum, bool value)
+{
+    VM* vm = tasklist[vmnum];
+    if (vm)
+    {
+        vm->setTrace(value);
+        return vmnum;
+    }
+    return -1;
+}
+
+void vmsetTrace(int vmnum, bool value)
+{
+    VM::setTrace(vmnum, value);
+}
+
 int listvms(Print &out)
 {
     return VM::listTasks(out);
@@ -473,7 +489,7 @@ void vmclr()
 int VM::func_add(int lval, int rval)
 {
     bool lvalreg = isreg(&lval);
-    carry = false;
+    overflow = false;
     zero = false;
     if (trace)
         LOGF("ADD %d to %s%d ", rval, (lvalreg ? "%" : "#"), lval);
@@ -482,7 +498,7 @@ int VM::func_add(int lval, int rval)
         int v = reg[lval] + rval;
         int vmod = v % MOD_OP2;
         if (v != vmod)
-            carry = true;
+            overflow = true;
         reg[lval] = vmod;
         if (trace)
             LOGF("(=%d)\n", reg[lval]);
@@ -494,7 +510,7 @@ int VM::func_add(int lval, int rval)
         int v = ch->get() + rval;
         int vmod = v % MOD_OP2;
         if (v != vmod)
-            carry = true;
+            overflow = true;
         ch->set(vmod);
         if (trace)
             LOGF("(=%d)\n", ch->get());
@@ -506,7 +522,7 @@ int VM::func_add(int lval, int rval)
 
 int VM::func_sub(int lval, int rval)
 {
-    carry = false;
+    overflow = false;
     zero = false;
     bool lvalreg = isreg(&lval);
     if (trace)
@@ -517,7 +533,7 @@ int VM::func_sub(int lval, int rval)
         if (v < 0)
         {
             v += MOD_OP2;
-            carry = true;
+            overflow = true;
         }
         reg[lval] = v;
         if (trace)
@@ -533,7 +549,7 @@ int VM::func_sub(int lval, int rval)
             if (v < 0)
             {
                 v += MOD_OP2;
-                carry = true;
+                overflow = true;
             }
             ch->set(v);
             if (trace)
@@ -598,7 +614,7 @@ int VM::func_jz(int, int rval)
 
 int VM::func_jnv(int, int rval)
 {
-    if (!carry)
+    if (!overflow)
     {
         jumpto(rval);
         if (trace)
@@ -614,7 +630,7 @@ int VM::func_jnv(int, int rval)
 
 int VM::func_jv(int, int rval)
 {
-    if (carry)
+    if (overflow)
     {
         jumpto(rval);
         if (trace)
@@ -841,7 +857,7 @@ int main(int argc, char *argv[])
         if (fp)
         {
             VM vm(fp);
-            vm.settrace(trace);
+            vm.setTrace(trace);
             vm.start();
             CLOSEFILE(fp);
         }

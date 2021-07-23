@@ -4,6 +4,7 @@
 #include <LITTLEFS.h>
 
 #include "cmd.h"
+#include "seqvm.h"
 
 namespace pa
 {
@@ -204,6 +205,32 @@ void clr(int argc, char *argv[])
   vmclr();
 }
 
+void traceon(int argc, char* argv[])
+{
+  extern void vmsetTrace(int, bool);
+  if (argc == 2)
+  {
+    vmsetTrace(atoi(argv[1]), true);
+  }
+  else
+  {
+    client.printf("%s VMNUMBER", argv[0]);
+  }
+}
+
+void traceoff(int argc, char* argv[])
+{
+  extern void vmsetTrace(int, bool);
+  if (argc == 2)
+  {
+    vmsetTrace(atoi(argv[1]), false);
+  }
+  else
+  {
+    client.printf("%s VMNUMBER", argv[0]);
+  }
+}
+
 void run(int argc, char *argv[])
 {
   extern int runBinary(char *);
@@ -289,6 +316,8 @@ std::vector<cmdDescriptor> cmdTable = {
     cmdEntry(list, , ),
     cmdEntry(kill, , ),
     cmdEntry(clr, , ),
+    cmdEntry(traceon, , ),
+    cmdEntry(traceoff, , ),
     cmdEntry(rm, , ),
     cmdEntry(tree, , )
 };

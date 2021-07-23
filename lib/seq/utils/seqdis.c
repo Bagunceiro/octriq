@@ -75,12 +75,12 @@ int main(int argc, char *argv[])
             unsigned long instr;
             while (readInstruction(infile, &instr) > 0)
             {
-                char tcstr[6];
+                // char tcstr[6];
                 int numops;
-                unsigned long tc = getField(instr, INSTR_BITS, OFFSET_TC, WIDTH_TC);
-                tcstr[0] = '\00';
-                if (tc > 0)
-                    sprintf(tcstr, "%4ld ", tc);
+                // unsigned long tc = getField(instr, INSTR_BITS, OFFSET_TC, WIDTH_TC);
+                // tcstr[0] = '\00';
+                // if (tc > 0)
+                //     sprintf(tcstr, "%4ld ", tc);
                 unsigned long opcode = getField(instr, INSTR_BITS, OFFSET_OPC, WIDTH_OPC);
                 unsigned long indirect = (opcode & IND_MASK);
                 const char *mnemonic = findMnemonic(opcode & OPC_MASK, &numops);
@@ -111,8 +111,8 @@ int main(int argc, char *argv[])
                         pfx2 = "#";
                 }
 
-                printf("%04x %03lx %02lx %02x %1x %03x", address, tc, opcode, op1raw, ind, op2raw);
-                printf("  %6s ", tcstr);
+                printf("%04x %02lx %02x %1x %03x", address, opcode, op1raw, ind, op2raw);
+                // printf("  %6s ", tcstr);
                 printf("%4s", mnemonic);
                 char *openind1 = (indirect ? "(%" : "");
                 char *closeind1 = (indirect ? ")" : "");

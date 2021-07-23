@@ -27,13 +27,11 @@ const struct OpcodeDef_struct
 
 #define BYTE_BITS (8)
 
-#define WIDTH_TC  (10)
-#define WIDTH_OPC  (6)
+#define WIDTH_OPC  (8)
 #define WIDTH_OP1  (5)
 #define WIDTH_IND  (1)
 #define WIDTH_OP2 (10)
 
-#define MOD_TC  (1 << WIDTH_TC)      // 1024 = modulus of the timecode field
 #define MOD_OPC (1 << WIDTH_OPC)     // 64   = modulus of the opcode field
 #define MOD_OP1 (1 << WIDTH_OP1)     // 32   = modulus of the op1 field
 #define MOD_IND (1 << WIDTH_IND)     // 2    = modulus of the op1 indirection field
@@ -46,8 +44,7 @@ const struct OpcodeDef_struct
 #define OPC_MASK    ((MOD_OPC/2) -1) // (2^6 /2) -1 = 31 =  11111   bits holding the opcode
 #define IND_MASK    ((MOD_OPC/2))    // (2^6)       = 64 = 100000   bit indicates rval is indirect
 
-#define OFFSET_TC  (0)
-#define OFFSET_OPC (WIDTH_TC)
+#define OFFSET_OPC (0)
 #define OFFSET_OP1 (OFFSET_OPC + WIDTH_OPC)
 #define OFFSET_IND (OFFSET_OP1 + WIDTH_OP1)
 #define OFFSET_OP2 (OFFSET_IND + WIDTH_IND)
