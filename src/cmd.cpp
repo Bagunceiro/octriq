@@ -159,7 +159,7 @@ void list(int argc, char *argv[])
 
 void kill(int argc, char *argv[])
 {
-  extern int killvm(int);
+  // extern int killvm(int);
   if (argc != 2)
   {
     client.printf("%s JOBNO ...\n", argv[0]);
@@ -171,7 +171,7 @@ void kill(int argc, char *argv[])
       int jobno = atoi(argv[i]);
       if (jobno > 0)
       {
-        int res = killvm(jobno);
+        int res = VM::kill(jobno);
         if (res >= 0)
         {
           client.printf("VM %s killed\n", argv[i]);
@@ -189,8 +189,6 @@ void kill(int argc, char *argv[])
   }
 }
 
-extern void vmclr();
-
 char* absfilename(char* n)
 {
     char* fname = new char[strlen(n)+2];
@@ -202,15 +200,15 @@ char* absfilename(char* n)
 
 void clr(int argc, char *argv[])
 {
-  vmclr();
+  VM::clr();
 }
 
 void traceon(int argc, char* argv[])
 {
-  extern void vmsetTrace(int, bool);
+  // extern void vmsetTrace(int, bool);
   if (argc == 2)
   {
-    vmsetTrace(atoi(argv[1]), true);
+    VM::setTrace(atoi(argv[1]), true);
   }
   else
   {
@@ -220,10 +218,10 @@ void traceon(int argc, char* argv[])
 
 void traceoff(int argc, char* argv[])
 {
-  extern void vmsetTrace(int, bool);
+  // extern void vmsetTrace(int, bool);
   if (argc == 2)
   {
-    vmsetTrace(atoi(argv[1]), false);
+    VM::setTrace(atoi(argv[1]), false);
   }
   else
   {
@@ -233,7 +231,6 @@ void traceoff(int argc, char* argv[])
 
 void run(int argc, char *argv[])
 {
-  extern int runBinary(char *);
   if (argc != 2)
   {
     Serial.printf("%s BINFILE", argv[0]);
@@ -242,7 +239,7 @@ void run(int argc, char *argv[])
   {
     char* fname = absfilename(argv[1]);
 
-    int jobno = runBinary(fname);
+    int jobno = VM::runBinary(fname);
     delete fname;
     if (jobno >= 0)
     {

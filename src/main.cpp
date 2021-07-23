@@ -9,6 +9,10 @@
 
 #include "seqvm.h"
 
+const char *demofile = "/demo.bin";
+bool demoavailable = false;
+const long VM_IDLE_TIME = 1 * 60 * 1000; // idle time (ms) before demo kicks in
+
 const char *mDNSName = "octrick";
 
 #define serr Serial
@@ -89,21 +93,19 @@ bool checkLittleEndian()
 {
   uint8_t test = 0x1;
   unsigned int z = test;
-  uint8_t* s = reinterpret_cast<uint8_t*>(&z);
-  uint8_t c = s[sizeof(z)-1];
-  return(c = test);
+  uint8_t *s = reinterpret_cast<uint8_t *>(&z);
+  uint8_t c = s[sizeof(z) - 1];
+  return (c = test);
 }
 
 void setup()
 {
-  // const char *filename = "/seq.bin";
-  extern void vmclr();
   extern void initSysUpdate();
 
   Serial.begin(115200);
 
-  VM::buildOpMap(); // Also build the channels
-  vmclr();
+  VM::buildOpMap(); // Also builds the channels
+  VM::clr();
 
   if (!checkLittleEndian())
   {
@@ -115,19 +117,10 @@ void setup()
   connectToWiFi();
   initSysUpdate();
   startCmdTask();
-
-  /*
-  File f = LITTLEFS.open(filename);
-  if (f)
+  if (LITTLEFS.exists(demofile))
   {
-    VM* vm = new VM(f);
-
-    vm->settrace(true);
-    vm->startAsTask(0);
+    demoavailable = true;
   }
-  else
-    Serial.printf("Could not open binary file %s\n", filename);
-    */
 }
 
 void loop()
@@ -139,23 +132,17 @@ void loop()
     if (!wifiWasConnected)
     {
       wifiWasConnected = true;
-      // serr.begin("Octrick");
       serr.println("WiFi connected");
     }
     if (!ntpstarted)
     {
-      // timeClient.setUpdateCallback(ntpUpdated);
       timeClient.begin();
       timeClient.setUpdateInterval(3600000);
       timeClient.setTimeOffset(TZ * 60 * 60);
       ntpstarted = true;
     }
-    // in NTPClient_Generic false return is not (necessarily) a failure - it just means
-    // not updated, which happens most spins of the loop because no attempt is made.
-    // if (!timeClient.update()) serr.println("NTP failure");
-    timeClient.update();
 
-    // serr.loop();
+    timeClient.update();
   }
   else
   {
@@ -163,6 +150,24 @@ void loop()
     {
       serr.println("WiFi connection lost");
       wifiWasConnected = false;
+    }
+  }
+
+  if (demoavailable)
+  {
+    static long lastActivity = millis();
+    if (VM::taskCount() == 0)
+    {
+      // Idle
+      if ((millis() - lastActivity) > VM_IDLE_TIME)
+      {
+        VM::runBinary(demofile);
+        demoavailable = false; // To prevent it constantly restarting when killed
+      }
+    }
+    else
+    {
+      lastActivity = millis();
     }
   }
 }

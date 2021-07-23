@@ -72,30 +72,15 @@ void getFile(const char* url, const char* target)
             File f = LITTLEFS.open(target, "w+");
             if (f)
             {
-                // String payload = http.getString();
                 Stream& s = http.getStream();
-//                uint8_t buffer[128];
-//                size_t l;
+
                 while (true)
                 {
-                    // Serial.printf("Reading\n");
-                    // Serial.flush();
                     int c = s.read();
                     if (c < 0) break;
                     f.write(c);
-//                    Serial.print(".");
-//                    l = s.readBytes(buffer, sizeof(buffer)-1);
-//                    if (l == 0) break;
-//                    Serial.printf("Read %d\n", l);
-//                    Serial.flush();
-//                    f.write(buffer, l);
-//                    Serial.printf("Copied %d\n", l);
-//                    Serial.flush();
-                    // delay(5);
                 }
-                // f.print(payload.c_str());
                 f.close();
-//                Serial.println("");
             }
             else
                 client.printf("Could not open %s\n",target);
@@ -125,29 +110,19 @@ void wget(int argc, char *argv[])
         char *fname;
         if (argc == 2)
         {
-            char fnamebuff[20];
-            fname = fnamebuff;
             int i;
             for (i = strlen(argv[1]); i > 0; i--)
             {
                 if (argv[1][i] == '/') break;
             }
-            strncpy(fnamebuff, &argv[1][i], sizeof(fnamebuff) - 1);
+            fname = strdup(&argv[1][i]);
         }
         else
         {
-            fname = argv[2];
+            fname = absfilename(argv[2]);
         }
-        if (fname[0] != '/')
-        {
-            for (int i = strlen(fname)-1; i > 0; i--) // leave the null if it's the last char
-            {
-                fname[i] = fname[i-1];
-            }
-            fname[0] = '/';
-        }
-        // client.printf("getFile(%s,%s)\n", url.c_str(), fname);
         getFile(url.c_str(), fname);
+        free(fname);
     }
 }
 

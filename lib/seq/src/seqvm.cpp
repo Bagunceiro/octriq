@@ -174,6 +174,11 @@ int VM::listTasks(Print &out)
     return 0;
 }
 
+int VM::taskCount()
+{
+    return tasklist.size();
+}
+
 int VM::setTrace(int vmnum, bool value)
 {
     VM* vm = tasklist[vmnum];
@@ -478,12 +483,13 @@ int VM::func_clr(int, int)
     return 0;
 }
 
-void vmclr()
+int VM::clr()
 {
     for (int i = 0; i < NCHANNELS; i++)
     {
         Channel::getChannel(i)->set(0);
     }
+    return 0;
 }
 
 int VM::func_add(int lval, int rval)
@@ -806,7 +812,7 @@ void VM::buildOpMap()
 
 #ifdef ARDUINO
 
-int runBinary(char *filename)
+int VM::runBinary(const char *filename)
 {
     int result = -1;
     File f = OPENFILE(filename, "r");

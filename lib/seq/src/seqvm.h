@@ -63,9 +63,9 @@ public:
     VM(const VM &rhs);
     VM &operator=(const VM &rhs);
     virtual ~VM();
+
     void setName(const char* n) { if (name) free(name); name = strdup(n); }
     void exec();
-    static void buildOpMap();
     void dumpRegisters()
     {
         for (int i = 0; i < NREGISTERS; i++)
@@ -75,12 +75,19 @@ public:
     void start(int address = 0);
     void startAsTask(int address, int stacksize = 3072);
     void setTrace(bool t) { trace = t; }
+    int getNumber() { return vmnumber; }
+
     static int setTrace(int vmnum, bool);
     static int kill(int);
-    int getNumber() { return vmnumber; }
+    static int clr();
+    static int taskCount();
+    static int runBinary(const char*);
+    static void buildOpMap();
+
 #ifdef ARDUINO
     static int listTasks(Print &out);
 #endif
+
 private:
 #ifdef ARDUINO
     void createTask(const char *n, int stack);
@@ -91,17 +98,28 @@ private:
 #endif
 #endif
 
+    char* name;
+
+    // virtual memory
     Text txt;
+
+    // Processor registers
     int reg[NREGISTERS];
+    // Processor status flags
+    bool zero;
+    bool overflow; // Actually underflow too
+    // stack
+    uint8_t stackptr;
     int stackSize;
     int *stack;
-    uint8_t stackptr;
+
     unsigned int progCounter;
     int vmnumber;
     void push(unsigned int val);
     unsigned int pop();
     bool fetch(unsigned long *instr);
     void jumpto(int address);
+
     int func_nop(int, int);
     int func_set(int, int);
     int func_clr(int, int);
@@ -119,16 +137,16 @@ private:
     int func_pop(int, int);
     int func_run(int, int);
     int func_dly(int, int);
-    static std::map<int, int (VM::*)(int, int)> opmap;
-    bool zero;
-    bool overflow;
+
+
+
     bool trace;
     static int numVMs;
-    // bool abort;
-
+    
+    static std::map<int, int (VM::*)(int, int)> opmap;
     static std::map<int, VM *> tasklist;
     bool halt;
-    char* name;
+
     unsigned long started;
     unsigned long due;
     unsigned long totalsleep;

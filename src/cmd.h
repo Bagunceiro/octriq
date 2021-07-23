@@ -16,3 +16,4 @@ extern bool addToCmdTable(void (*func)(int, char *[]),
                           const char *name,
                           const char *descripton = "",
                           const char *helpText = "");
+extern char *absfilename(char *n);
