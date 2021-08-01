@@ -2,6 +2,7 @@
 
 #include <map>
 #include <memory>
+#include <vector>
 
 #ifdef ARDUINO
 #include <LITTLEFS.h>
@@ -71,7 +72,7 @@ public:
         for (int i = 0; i < NREGISTERS; i++)
             printf("Reg %x = %d\n", i, reg[i]);
     }
-    void setStack(int size);
+    // void setStack(int size);
     void start(int address = 0);
     void startAsTask(int address, int stacksize = 3072);
     void setTrace(bool t) { trace = t; }
@@ -109,11 +110,13 @@ private:
     bool zero;
     bool overflow; // Actually underflow too
     // stack
-    uint8_t stackptr;
-    int stackSize;
-    int *stack;
+    // uint8_t stackptr;
+    // int stackSize;
+    // int *stack;
+    std::vector<unsigned int> stack;
 
     unsigned int progCounter;
+
     int vmnumber;
     void push(unsigned int val);
     unsigned int pop();
@@ -137,8 +140,7 @@ private:
     int func_pop(int, int);
     int func_run(int, int);
     int func_dly(int, int);
-
-
+    int func_cmp(int, int);
 
     bool trace;
     static int numVMs;
@@ -150,4 +152,5 @@ private:
     unsigned long started;
     unsigned long due;
     unsigned long totalsleep;
+    int countOverruns;
 };

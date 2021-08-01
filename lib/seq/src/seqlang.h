@@ -23,6 +23,7 @@ const struct OpcodeDef_struct
 { "pop", 14, 1 },
 { "run", 15, 3 },
 { "dly", 16, 3 },
+{ "cmp", 17, 3 },
 { (const char*)0,  0 }};
 
 #define BYTE_BITS (8)

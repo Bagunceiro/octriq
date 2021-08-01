@@ -12,5 +12,5 @@ loop:
 	sub #(%1), 32;
 	sub %1, 1;
 	jnv loop;
-	dly 10;
+	dly 20;
 	jmp start;

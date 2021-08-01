@@ -309,14 +309,14 @@ std::vector<cmdDescriptor> cmdTable = {
     // You can also add entries using "addToCmdTable(...)"
     cmdEntry(exit, , ),
     cmdEntry(help, , ),
-    cmdEntry(run, , ),
-    cmdEntry(list, , ),
-    cmdEntry(kill, , ),
-    cmdEntry(clr, , ),
-    cmdEntry(traceon, , ),
-    cmdEntry(traceoff, , ),
-    cmdEntry(rm, , ),
-    cmdEntry(tree, , )
+    cmdEntry(run, ,"run FILENAME" ),
+    cmdEntry(list, ,"list" ),
+    cmdEntry(kill, ,"kill VM#" ),
+    cmdEntry(clr, ,"clr" ),
+    cmdEntry(traceon, ,"traceon VM#" ),
+    cmdEntry(traceoff, ,"traceoff VM#" ),
+    cmdEntry(rm, ,"rm FILENAME" ),
+    cmdEntry(tree, ,"tree" )
 };
 
 void help(int argc, char *argv[])

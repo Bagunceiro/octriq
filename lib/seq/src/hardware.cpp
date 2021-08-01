@@ -4,7 +4,7 @@
 std::map<int, Channel *> Channel::channels;
 
 // Map channel number (array index) to GPIO pin
-int pinlist[] = {13, 12, 14, 27, 26, 25, 33, 32, 0};
+int pinlist[] = {32, 33, 25, 26, 27, 12, 13, 23, 0};
 const int pwmBits = 8;
 const int pwmMax = (1 << pwmBits) - 1;
 

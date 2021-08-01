@@ -2,18 +2,19 @@
 #include <LITTLEFS.h>
 #include <ArduinoJson.h>
 #include <ESPmDNS.h>
+#include <ESPAsyncWebServer.h>
 
 #include "networks.h"
 #include "ntpclient.h"
 #include "cmd.h"
-
 #include "seqvm.h"
+#include "otwebserver.h"
 
 const char *demofile = "/demo.bin";
 bool demoavailable = false;
 const long VM_IDLE_TIME = 1 * 60 * 1000; // idle time (ms) before demo kicks in
 
-const char *mDNSName = "octrick";
+const char *mDNSName = "octriq";
 
 #define serr Serial
 
@@ -24,7 +25,6 @@ const int TZ = -3;
 WiFiMulti wifimulti;
 networkList configuredNets;
 WiFiUDP udp;
-
 NTPClient timeClient(udp, TZ * 60 * 60);
 
 networkList &networkConfRead()
@@ -98,6 +98,21 @@ bool checkLittleEndian()
   return (c = test);
 }
 
+void blink(void*)
+{
+  const int blinkpin = 12;
+  pinMode(blinkpin, OUTPUT);
+  while (true)
+  {
+    digitalWrite(blinkpin, HIGH);
+    delay(500);
+    digitalWrite(blinkpin, LOW);
+    delay(500);
+  }
+}
+
+ xTaskHandle blinkTask;
+
 void setup()
 {
   extern void initSysUpdate();
@@ -117,10 +132,13 @@ void setup()
   connectToWiFi();
   initSysUpdate();
   startCmdTask();
+  
   if (LITTLEFS.exists(demofile))
   {
     demoavailable = true;
   }
+
+  wssetup();
 }
 
 void loop()

@@ -120,7 +120,7 @@ unsigned int Instruction::getField(unsigned long code, int width, int pos, int b
 
 void Instruction::deconstruct(const unsigned long code)
 {
-//    _timecode = getField(code, INSTR_BITS, OFFSET_TC, WIDTH_TC);
+    //    _timecode = getField(code, INSTR_BITS, OFFSET_TC, WIDTH_TC);
     _opcode = getField(code, INSTR_BITS, OFFSET_OPC, WIDTH_OPC);
     _op1 = getField(code, INSTR_BITS, OFFSET_OP1, WIDTH_OP1);
     _ind = getField(code, INSTR_BITS, OFFSET_IND, WIDTH_IND);
@@ -169,7 +169,16 @@ int VM::listTasks(Print &out)
 {
     for (auto const &x : tasklist)
     {
-        out.printf("%d, %s\n", x.first, x.second->name);
+        VM *vm = x.second;
+        int dutyCycle;
+        unsigned long elapsed = millis() - vm->started;
+        unsigned long runtime = elapsed - vm->totalsleep;
+        dutyCycle = (runtime * 100) / elapsed;
+
+        out.printf("%d, %s, duty cycle=(%lu/%lu) %d%%, overuns=%d\n",
+                   x.first, vm->name,
+                   runtime, elapsed, dutyCycle,
+                   vm->countOverruns);
     }
     return 0;
 }
@@ -181,7 +190,7 @@ int VM::taskCount()
 
 int VM::setTrace(int vmnum, bool value)
 {
-    VM* vm = tasklist[vmnum];
+    VM *vm = tasklist[vmnum];
     if (vm)
     {
         vm->setTrace(value);
@@ -206,7 +215,6 @@ int VM::numVMs = 0;
 
 void VM::startAsTask(int address, int stacksize)
 {
-    // LOGF("startAsTask(%d, %d)\n", address, stacksize);
     progCounter = address;
 #ifdef ARDUINO
     char buff[8];
@@ -253,38 +261,32 @@ void VM::createTask(const char *name, int stacksize)
 VM::VM(File f, int stk)
 {
     //    binfile = f;
-    stackSize = stk;
-    stackptr = 0;
     zero = 0;
     trace = false;
-    stack = NULL;
-    setStack(stackSize);
     progCounter = 0;
     txt.load(f);
     vmnumber = 0;
-    #ifdef ARDUINO
+#ifdef ARDUINO
     xHandle = NULL;
-    #endif
+#endif
     halt = false;
     name = strdup("");
+    countOverruns = 0;
 }
 
 VM &VM::operator=(const VM &rhs)
 {
     txt = rhs.txt;
-    stackptr = 0;
-    stackSize = rhs.stackSize;
     halt = false;
     trace = rhs.trace;
-    stack = NULL;
-    setStack(stackSize);
     progCounter = 0;
     vmnumber = 0;
-    #ifdef ARDUINO
+#ifdef ARDUINO
     xHandle = NULL;
-    #endif
+#endif
     zero = 0;
     name = strdup("");
+    countOverruns = 0;
     return *this;
 }
 
@@ -293,42 +295,23 @@ VM::VM(const VM &rhs)
     *this = rhs;
 }
 
-void VM::setStack(int size)
-{
-    if (stack)
-        free(stack);
-    stack = (int *)malloc(size * sizeof(int));
-    stackSize = size;
-}
-
 VM::~VM()
 {
-    if (stack)
-        free(stack);
     free(name);
 }
 
 void VM::push(unsigned int val)
 {
-    if (stackptr < stackSize)
-    {
-        stack[stackptr] = val;
-        stackptr++;
-    }
-    else
-    {
-        LOGF("Stack Overflow at %d\n", progCounter);
-        halt = true;
-    }
+    stack.push_back(val);
 }
 
 unsigned int VM::pop()
 {
-    int result;
-    if (stackptr > 0)
+    int result = 0;
+    if (!stack.empty())
     {
-        stackptr--;
-        result = stack[stackptr];
+        result = stack.back();
+        stack.pop_back();
     }
     else
     {
@@ -360,9 +343,6 @@ void VM::exec()
     started = millis();
     due = started;
     totalsleep = 0;
-#ifdef STACK_TUNE
-    unsigned long lastReportedDutyCycle = started;
-#endif
 
     jumpto(progCounter);
 
@@ -379,7 +359,6 @@ void VM::exec()
             }
         }
 #endif
-        // unsigned long now = millis();
         unsigned int tmpadd = progCounter;
         unsigned long insbin;
 
@@ -389,7 +368,6 @@ void VM::exec()
         if (fetch(&insbin))
         {
             Instruction in(insbin);
-            // unsigned long timecode = in.timecode();
 
             int (VM::*func)(int, int) = opmap[in.opcode() & OPC_MASK];
 
@@ -565,7 +543,6 @@ int VM::func_sub(int lval, int rval)
         else
             LOGF("\n");
     }
-
     return 0;
 }
 
@@ -717,16 +694,78 @@ int VM::func_dly(int, int rval)
     unsigned long now = millis();
     due = due + rval;
     long sleeptime = (due - now);
+    if (trace)
+        LOGF("DLY %d (actual: %ld)\n", rval, sleeptime);
 
-    if (sleeptime > 0)
+    if ((sleeptime > 0) && (sleeptime < 1024))
     {
         totalsleep += sleeptime;
         delay(sleeptime);
     }
     else
-        (LOGF("time overrun (%lu - %lu %ld\n", due, now, sleeptime));
+    {
+        countOverruns++;
+        if (countOverruns > 20)
+        {
+            countOverruns = 0;
+            (LOGF("time overrun (%lu - %lu = %ld)\n", due, now, sleeptime));
+            // Reset timing
+            due = now;
+        }
+    }
+
+    static unsigned long pause = 0;
+    if ((now - pause) > 600000) // Every 10 minutes
+    {
+        pause = now;
+        LOGF("%lu: started %lu, runtime %lu, totalsleep %lu\n", now, started, now - started, totalsleep);
+    }
+
+    return 0;
+}
+
+int VM::func_cmp(int lval, int rval)
+{
+    // !!!! This is more or less identical to func_sub
+    // change it to share the code.
+    overflow = false;
+    zero = false;
+    bool lvalreg = isreg(&lval);
+
     if (trace)
-        LOGF("DLY %d\n", rval);
+        LOGF("CMP %s%d, %d", (lvalreg ? "%" : "#"), lval, rval);
+    if (lvalreg)
+    {
+        int v = reg[lval] - rval;
+        if (v < 0)
+        {
+            v += MOD_OP2;
+            overflow = true;
+        }
+        //        reg[lval] = v;
+        //        if (trace)
+        //            LOGF("(=%d)\n", reg[lval]);
+        zero = (v == 0);
+    }
+    else
+    {
+        Channel *ch = Channel::getChannel(lval);
+        if (ch)
+        {
+            int v = ch->get() - rval;
+            if (v < 0)
+            {
+                v += MOD_OP2;
+                overflow = true;
+            }
+            //            ch->set(v);
+            //            if (trace)
+            //                LOGF("(=%d)\n", ch->get());
+            zero = (v == 0);
+        }
+        else
+            LOGF("\n");
+    }
     return 0;
 }
 
@@ -803,6 +842,10 @@ void VM::buildOpMap()
         else if (strcmp(mnemonic, "dly") == 0)
         {
             opmap[opcode] = &VM::func_dly;
+        }
+        else if (strcmp(mnemonic, "cmp") == 0)
+        {
+            opmap[opcode] = &VM::func_cmp;
         }
         else
             LOGF("BuildOpMap: Unknown mnemonic: %s\n", mnemonic);

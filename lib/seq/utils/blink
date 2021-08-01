@@ -1,0 +1,10 @@
+start:
+	set %1,7;
+loop:
+	set #(%1),1023;
+	dly 1;
+	set #(%1),0;
+	dly 1;
+	sub %1,1;
+	jnv loop;
+	jmp start;
